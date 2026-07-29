@@ -8,7 +8,6 @@ import {
   getTemplateExercises,
   addTemplateExercise,
   deleteTemplateExercise,
-  addExercise as addExerciseAction,
 } from "@/lib/actions/programs"
 import { addExercise } from "@/lib/actions/exercises"
 import type { Program, WorkoutTemplate, Exercise } from "@/lib/db/schema"
