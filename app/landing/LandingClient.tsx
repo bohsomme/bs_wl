@@ -93,7 +93,7 @@ export function LandingClient() {
               <FeatureItem icon={<Video className="h-4 w-4" />} text={t.option1Feature3} />
             </ul>
 
-            <Button className="mt-8 w-full" onClick={() => openModal("standard")}>
+            <Button className="mt-auto pt-8 w-full" onClick={() => openModal("standard")}>
               {t.option1CTA}
             </Button>
           </article>
@@ -119,7 +119,7 @@ export function LandingClient() {
               <FeatureItem icon={<Video className="h-4 w-4" />} text={t.option2Feature4} />
             </ul>
 
-            <Button className="mt-8 w-full" onClick={() => openModal("personalized")}>
+            <Button className="mt-auto pt-8 w-full" onClick={() => openModal("personalized")}>
               {t.option2CTA}
             </Button>
           </article>
