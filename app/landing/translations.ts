@@ -36,6 +36,7 @@ export const translations = {
     successMessage: "I'll be in touch shortly to get you set up.",
     errorMessage: "Something went wrong. Please try again.",
     cancel: "Cancel",
+    close: "Close",
     required: "Email is required",
   },
   no: {
@@ -73,6 +74,7 @@ export const translations = {
     successMessage: "Jeg tar kontakt snart for å sette deg i gang.",
     errorMessage: "Noe gikk galt. Prøv igjen.",
     cancel: "Avbryt",
+    close: "Lukk",
     required: "E-post er påkrevd",
   },
 } satisfies Record<Locale, Record<string, string>>

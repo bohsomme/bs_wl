@@ -71,7 +71,7 @@ export function SignupModal({ open, onOpenChange, program, locale }: SignupModal
               <p className="mt-1 text-sm text-muted-foreground">{t.successMessage}</p>
             </div>
             <Button onClick={() => handleClose(false)} className="mt-2 w-full">
-              {t.cancel}
+              {t.close}
             </Button>
           </div>
         ) : (
