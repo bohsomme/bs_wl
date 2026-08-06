@@ -72,7 +72,7 @@ export function LandingClient() {
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 pb-20">
         <div className="grid gap-6 sm:grid-cols-2">
           {/* Option 1 — Standard */}
-          <article className="flex flex-col rounded-xl border border-border bg-card p-8 shadow-sm transition-shadow hover:shadow-md">
+          <article className="flex flex-col rounded-xl border border-border bg-card p-8 shadow-sm transition-shadow hover:shadow-md min-h-[480px]">
             <div className="flex items-start justify-between gap-4">
               <h2 className="text-xl font-semibold">{t.option1Title}</h2>
               <Badge variant="secondary" className="shrink-0">
@@ -93,13 +93,15 @@ export function LandingClient() {
               <FeatureItem icon={<Video className="h-4 w-4" />} text={t.option1Feature3} />
             </ul>
 
-            <Button className="mt-auto pt-8 w-full" onClick={() => openModal("standard")}>
-              {t.option1CTA}
-            </Button>
+            <div className="mt-auto pt-8">
+              <Button className="w-full" onClick={() => openModal("standard")}>
+                {t.option1CTA}
+              </Button>
+            </div>
           </article>
 
           {/* Option 2 — Personalized */}
-          <article className="relative flex flex-col rounded-xl border-2 border-primary bg-card p-8 shadow-sm transition-shadow hover:shadow-md">
+          <article className="relative flex flex-col rounded-xl border-2 border-primary bg-card p-8 shadow-sm transition-shadow hover:shadow-md min-h-[480px]">
             <div className="flex items-start justify-between gap-4">
               <h2 className="text-xl font-semibold">{t.option2Title}</h2>
               <Badge className="shrink-0">{t.option2Badge}</Badge>
@@ -119,9 +121,11 @@ export function LandingClient() {
               <FeatureItem icon={<Video className="h-4 w-4" />} text={t.option2Feature4} />
             </ul>
 
-            <Button className="mt-auto pt-8 w-full" onClick={() => openModal("personalized")}>
-              {t.option2CTA}
-            </Button>
+            <div className="mt-auto pt-8">
+              <Button className="w-full" onClick={() => openModal("personalized")}>
+                {t.option2CTA}
+              </Button>
+            </div>
           </article>
         </div>
       </main>
