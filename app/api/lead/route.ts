@@ -39,7 +39,7 @@ export async function POST(req: Request) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "BS-WL <onboarding@resend.dev>",
+      from: "BS-WL <onboarding@bs-weightlifting.com>",
       to: [toEmail],
       subject: `New lead: ${programLabel}`,
       html,
