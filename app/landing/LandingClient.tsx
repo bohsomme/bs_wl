@@ -32,7 +32,7 @@ export function LandingClient() {
       <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-sm">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
           <span className="text-xl font-bold tracking-tight text-foreground">
-            BS<span className="text-primary">-WL</span>
+            BS<span className="text-primary">-Weightlifting</span>
           </span>
 
           <div className="flex items-center gap-4">
