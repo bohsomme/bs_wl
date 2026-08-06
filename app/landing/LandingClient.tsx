@@ -72,7 +72,7 @@ export function LandingClient() {
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 pb-20">
         <div className="grid gap-6 sm:grid-cols-2">
           {/* Option 1 — Standard */}
-          <article className="flex flex-col rounded-xl border-2 bg-card p-8 shadow-sm transition-shadow hover:shadow-md min-h-[480px]" style={{ borderColor: "#800020" }}>
+          <article className="flex flex-col rounded-xl border border-border bg-card p-8 shadow-sm transition-shadow hover:shadow-md min-h-[480px]">
             <div className="flex items-start justify-between gap-4">
               <h2 className="text-xl font-semibold">{t.option1Title}</h2>
               <Badge variant="secondary" className="shrink-0">
@@ -81,48 +81,48 @@ export function LandingClient() {
             </div>
 
             <div className="mt-4 flex items-baseline gap-1">
-              <span className="text-3xl font-bold" style={{ color: "#800020" }}>{t.option1Price}</span>
+              <span className="text-3xl font-bold text-primary">{t.option1Price}</span>
               <span className="text-sm text-muted-foreground">{t.option1Period}</span>
             </div>
 
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{t.option1Description}</p>
 
             <ul className="mt-6 flex flex-col gap-3">
-              <FeatureItem icon={<Dumbbell className="h-4 w-4" />} text={t.option1Feature1} color="#800020" />
-              <FeatureItem icon={<MessageCircle className="h-4 w-4" />} text={t.option1Feature2} color="#800020" />
-              <FeatureItem icon={<Video className="h-4 w-4" />} text={t.option1Feature3} color="#800020" />
+              <FeatureItem icon={<Dumbbell className="h-4 w-4" />} text={t.option1Feature1} />
+              <FeatureItem icon={<MessageCircle className="h-4 w-4" />} text={t.option1Feature2} />
+              <FeatureItem icon={<Video className="h-4 w-4" />} text={t.option1Feature3} />
             </ul>
 
             <div className="mt-auto pt-8">
-              <Button size="lg" className="w-full" style={{ backgroundColor: "#800020", borderColor: "#800020" }} onClick={() => openModal("standard")}>
+              <Button size="lg" className="w-full" onClick={() => openModal("standard")}>
                 {t.option1CTA}
               </Button>
             </div>
           </article>
 
           {/* Option 2 — Personalized */}
-          <article className="relative flex flex-col rounded-xl border-2 bg-card p-8 shadow-sm transition-shadow hover:shadow-md min-h-[480px]" style={{ borderColor: "#800000" }}>
+          <article className="relative flex flex-col rounded-xl border-2 border-primary bg-card p-8 shadow-sm transition-shadow hover:shadow-md min-h-[480px]">
             <div className="flex items-start justify-between gap-4">
               <h2 className="text-xl font-semibold">{t.option2Title}</h2>
-              <Badge className="shrink-0" style={{ backgroundColor: "#800000", color: "#fff" }}>{t.option2Badge}</Badge>
+              <Badge className="shrink-0">{t.option2Badge}</Badge>
             </div>
 
             <div className="mt-4 flex items-baseline gap-1">
-              <span className="text-3xl font-bold" style={{ color: "#800000" }}>{t.option2Price}</span>
+              <span className="text-3xl font-bold text-primary">{t.option2Price}</span>
               <span className="text-sm text-muted-foreground">{t.option2Period}</span>
             </div>
 
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{t.option2Description}</p>
 
             <ul className="mt-6 flex flex-col gap-3">
-              <FeatureItem icon={<Dumbbell className="h-4 w-4" />} text={t.option2Feature1} color="#800000" />
-              <FeatureItem icon={<Calendar className="h-4 w-4" />} text={t.option2Feature2} color="#800000" />
-              <FeatureItem icon={<MessageCircle className="h-4 w-4" />} text={t.option2Feature3} color="#800000" />
-              <FeatureItem icon={<Video className="h-4 w-4" />} text={t.option2Feature4} color="#800000" />
+              <FeatureItem icon={<Dumbbell className="h-4 w-4" />} text={t.option2Feature1} />
+              <FeatureItem icon={<Calendar className="h-4 w-4" />} text={t.option2Feature2} />
+              <FeatureItem icon={<MessageCircle className="h-4 w-4" />} text={t.option2Feature3} />
+              <FeatureItem icon={<Video className="h-4 w-4" />} text={t.option2Feature4} />
             </ul>
 
             <div className="mt-auto pt-8">
-              <Button size="lg" className="w-full" style={{ backgroundColor: "#800000", borderColor: "#800000" }} onClick={() => openModal("personalized")}>
+              <Button size="lg" className="w-full" onClick={() => openModal("personalized")}>
                 {t.option2CTA}
               </Button>
             </div>
@@ -140,10 +140,10 @@ export function LandingClient() {
   )
 }
 
-function FeatureItem({ icon, text, color }: { icon: React.ReactNode; text: string; color?: string }) {
+function FeatureItem({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (
     <li className="flex items-center gap-2.5 text-sm text-foreground">
-      <span className="shrink-0" style={{ color: color ?? "var(--primary)" }}>{icon}</span>
+      <span className="shrink-0 text-primary">{icon}</span>
       {text}
     </li>
   )
