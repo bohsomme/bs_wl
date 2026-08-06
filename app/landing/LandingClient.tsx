@@ -94,7 +94,7 @@ export function LandingClient() {
             </ul>
 
             <div className="mt-auto pt-8">
-              <Button className="w-full" onClick={() => openModal("standard")}>
+              <Button size="lg" className="w-full" onClick={() => openModal("standard")}>
                 {t.option1CTA}
               </Button>
             </div>
@@ -122,7 +122,7 @@ export function LandingClient() {
             </ul>
 
             <div className="mt-auto pt-8">
-              <Button className="w-full" onClick={() => openModal("personalized")}>
+              <Button size="lg" className="w-full" onClick={() => openModal("personalized")}>
                 {t.option2CTA}
               </Button>
             </div>
