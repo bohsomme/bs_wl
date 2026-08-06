@@ -9,6 +9,10 @@ export const metadata: Metadata = {
   title: "BS Weightlifting",
   description: "Track your weightlifting programs, workouts, and personal bests.",
   generator: "v0.app",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/apple-icon.png",
+  },
 }
 
 export const viewport: Viewport = {
