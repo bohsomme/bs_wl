@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -9,12 +10,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { ChevronDown, Check, MessageCircle, Video, Calendar, Dumbbell } from "lucide-react"
+import { ChevronDown, Check, MessageCircle, Video, Calendar, Dumbbell, ArrowRight } from "lucide-react"
 import { SignupModal } from "./SignupModal"
 import type { Locale } from "./translations"
 import { translations } from "./translations"
 
-export function LandingClient() {
+export function LandingClient({ isAuthenticated = false }: { isAuthenticated?: boolean }) {
   const [locale, setLocale] = useState<Locale>("en")
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedProgram, setSelectedProgram] = useState<"standard" | "personalized" | null>(null)
@@ -36,9 +37,18 @@ export function LandingClient() {
           </span>
 
           <div className="flex items-center gap-4">
-            <span className="rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-              {t.appComingSoon}
-            </span>
+            {isAuthenticated ? (
+              <Button asChild size="sm" className="gap-1.5">
+                <Link href="/dashboard">
+                  {t.goToApp}
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </Button>
+            ) : (
+              <span className="rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+                {t.appComingSoon}
+              </span>
+            )}
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

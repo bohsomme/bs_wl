@@ -33,7 +33,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         const res = await authClient.signIn.email({ email, password })
         if (res.error) throw new Error(res.error.message ?? "Sign in failed")
       }
-      router.push("/")
+      router.push("/dashboard")
       router.refresh()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong")
