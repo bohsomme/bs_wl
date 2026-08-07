@@ -8,9 +8,14 @@ import {
   getTemplateExercises,
   addTemplateExercise,
   deleteTemplateExercise,
+  duplicateWorkoutTemplate,
+  getFunctionalBlocks,
+  addFunctionalBlock,
+  deleteFunctionalBlock,
 } from "@/lib/actions/programs"
 import { addExercise } from "@/lib/actions/exercises"
-import type { Program, WorkoutTemplate, Exercise } from "@/lib/db/schema"
+import type { Program, WorkoutTemplate, Exercise, TemplateFunctionalBlock } from "@/lib/db/schema"
+import { FUNCTIONAL_PRESETS, functionalHeading, type FunctionalKind } from "@/lib/functional-fitness"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -28,7 +33,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ChevronLeft, Plus, Trash2, Dumbbell, GripVertical, Settings } from "lucide-react"
+import { ChevronLeft, Plus, Trash2, Dumbbell, GripVertical, Settings, Copy, Flame, Clock } from "lucide-react"
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
@@ -62,7 +67,21 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
   const [exercises, setExercises] = useState(initialExercises)
   const [selectedTemplate, setSelectedTemplate] = useState<WorkoutTemplate | null>(null)
   const [templateExercises, setTemplateExercises] = useState<TemplateExerciseRow[]>([])
+  const [functionalBlocks, setFunctionalBlocks] = useState<TemplateFunctionalBlock[]>([])
   const [pending, startTransition] = useTransition()
+
+  // Duplicate day dialog
+  const [dupOpen, setDupOpen] = useState(false)
+  const [dupWeek, setDupWeek] = useState(1)
+  const [dupDay, setDupDay] = useState(1)
+
+  // Functional Fitness dialog
+  const [ffOpen, setFfOpen] = useState(false)
+  const [ffKind, setFfKind] = useState<FunctionalKind>("metcon")
+  const [ffTitle, setFfTitle] = useState("")
+  const [ffSource, setFfSource] = useState("")
+  const [ffDetails, setFfDetails] = useState("")
+  const [ffDuration, setFfDuration] = useState("")
 
   // New template form
   const [newTemplateName, setNewTemplateName] = useState("")
@@ -90,9 +109,61 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
   function selectTemplate(t: WorkoutTemplate) {
     setSelectedTemplate(t)
     startTransition(async () => {
-      const rows = await getTemplateExercises(t.id)
+      const [rows, blocks] = await Promise.all([
+        getTemplateExercises(t.id),
+        getFunctionalBlocks(t.id),
+      ])
       setTemplateExercises(rows as TemplateExerciseRow[])
+      setFunctionalBlocks(blocks)
     })
+  }
+
+  function handleDuplicateDay() {
+    if (!selectedTemplate) return
+    startTransition(async () => {
+      const t = await duplicateWorkoutTemplate({
+        templateId: selectedTemplate.id,
+        targetWeek: dupWeek,
+        targetDay: dupDay,
+        programId: program.id,
+      })
+      setTemplates((prev) => [...prev, t])
+      setDupOpen(false)
+    })
+  }
+
+  function handleAddFunctionalBlock() {
+    if (!selectedTemplate) return
+    if (ffKind === "custom" && !ffTitle.trim()) return
+    startTransition(async () => {
+      const block = await addFunctionalBlock({
+        workoutTemplateId: selectedTemplate.id,
+        kind: ffKind,
+        title: ffTitle.trim() || undefined,
+        source: ffSource.trim() || undefined,
+        details: ffDetails.trim() || undefined,
+        durationMin: ffDuration ? Number(ffDuration) : undefined,
+        orderIndex: functionalBlocks.length,
+      })
+      setFunctionalBlocks((prev) => [...prev, block])
+      resetFfForm()
+      setFfOpen(false)
+    })
+  }
+
+  function handleRemoveFunctionalBlock(id: number) {
+    startTransition(async () => {
+      await deleteFunctionalBlock(id)
+      setFunctionalBlocks((prev) => prev.filter((b) => b.id !== id))
+    })
+  }
+
+  function resetFfForm() {
+    setFfKind("metcon")
+    setFfTitle("")
+    setFfSource("")
+    setFfDetails("")
+    setFfDuration("")
   }
 
   function handleAddTemplate() {
@@ -264,9 +335,23 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
                     Week {selectedTemplate.weekNumber} &middot; {DAYS[selectedTemplate.dayOfWeek]}
                   </p>
                 </div>
-                <Button size="sm" className="gap-1.5" onClick={() => setAddExOpen(true)}>
-                  <Plus className="w-3.5 h-3.5" /> Add Exercise
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={() => {
+                      setDupWeek(Math.min(selectedTemplate.weekNumber + 1, program.totalWeeks))
+                      setDupDay(selectedTemplate.dayOfWeek)
+                      setDupOpen(true)
+                    }}
+                  >
+                    <Copy className="w-3.5 h-3.5" /> Duplicate
+                  </Button>
+                  <Button size="sm" className="gap-1.5" onClick={() => setAddExOpen(true)}>
+                    <Plus className="w-3.5 h-3.5" /> Add Exercise
+                  </Button>
+                </div>
               </div>
 
               {templateExercises.length === 0 ? (
@@ -308,6 +393,56 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
                   ))}
                 </div>
               )}
+
+              {/* Functional Fitness */}
+              <div className="pt-2">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold text-sm flex items-center gap-1.5">
+                    <Flame className="w-4 h-4 text-primary" /> Functional Fitness
+                  </h3>
+                  <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setFfOpen(true)}>
+                    <Plus className="w-3.5 h-3.5" /> Add
+                  </Button>
+                </div>
+                {functionalBlocks.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic px-1">
+                    No functional work. Add a MetCon, Zone 2, mobility, or a specific workout.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {functionalBlocks.map((b) => (
+                      <Card key={b.id}>
+                        <CardContent className="py-3 px-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 space-y-1">
+                              <p className="font-medium text-sm">{functionalHeading(b)}</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {b.source && <Badge variant="secondary" className="text-xs">{b.source}</Badge>}
+                                {b.durationMin != null && (
+                                  <Badge variant="outline" className="text-xs gap-1">
+                                    <Clock className="w-3 h-3" /> {b.durationMin} min
+                                  </Badge>
+                                )}
+                              </div>
+                              {b.details && (
+                                <p className="text-xs text-muted-foreground whitespace-pre-wrap">{b.details}</p>
+                              )}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 shrink-0"
+                              onClick={() => handleRemoveFunctionalBlock(b.id)}
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
             </>
           ) : (
             <Card className="border-dashed h-full min-h-48">
@@ -487,6 +622,126 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
           <DialogFooter>
             <Button variant="outline" onClick={() => setNewExOpen(false)}>Cancel</Button>
             <Button onClick={handleCreateExercise} disabled={pending || !newExName.trim()}>Add Exercise</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Duplicate Day Dialog */}
+      <Dialog open={dupOpen} onOpenChange={setDupOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Duplicate Training Day</DialogTitle>
+            <DialogDescription>
+              Copy {selectedTemplate?.name} — including exercises and functional work — to another week and day.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3 py-2">
+            <div className="space-y-1.5">
+              <Label>Week</Label>
+              <Select value={String(dupWeek)} onValueChange={(v) => setDupWeek(Number(v))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {weeks.map((w) => (
+                    <SelectItem key={w} value={String(w)}>Week {w}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Day</Label>
+              <Select value={String(dupDay)} onValueChange={(v) => setDupDay(Number(v))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DAYS.map((d, i) => (
+                    <SelectItem key={i} value={String(i)}>{d}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDupOpen(false)}>Cancel</Button>
+            <Button onClick={handleDuplicateDay} disabled={pending}>Duplicate</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Functional Fitness Dialog */}
+      <Dialog open={ffOpen} onOpenChange={(open) => { setFfOpen(open); if (!open) resetFfForm() }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add Functional Fitness</DialogTitle>
+            <DialogDescription>
+              Pick a type of workout, or choose Custom to type a specific one.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Type</Label>
+              <Select value={ffKind} onValueChange={(v) => setFfKind(v as FunctionalKind)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {FUNCTIONAL_PRESETS.map((p) => (
+                    <SelectItem key={p.kind} value={p.kind}>{p.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>{ffKind === "custom" ? "Specific workout" : "Label (optional)"}</Label>
+              <Input
+                placeholder={ffKind === "custom" ? "e.g. Fran, 21-15-9 thrusters & pull-ups" : "e.g. Rowing intervals 5×500m"}
+                value={ffTitle}
+                onChange={(e) => setFfTitle(e.target.value)}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Source (optional)</Label>
+                <Input
+                  placeholder={FUNCTIONAL_PRESETS.find((p) => p.kind === ffKind)?.defaultSource ?? "e.g. Other app"}
+                  value={ffSource}
+                  onChange={(e) => setFfSource(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Duration (min, optional)</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  placeholder="e.g. 20"
+                  value={ffDuration}
+                  onChange={(e) => setFfDuration(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Details (optional)</Label>
+              <Textarea
+                placeholder="Describe the workout, target pace, scaling, cues..."
+                rows={3}
+                value={ffDetails}
+                onChange={(e) => setFfDetails(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFfOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleAddFunctionalBlock}
+              disabled={pending || (ffKind === "custom" && !ffTitle.trim())}
+            >
+              Add
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

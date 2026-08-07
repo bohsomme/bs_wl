@@ -7,6 +7,7 @@ import {
   setLog,
   workoutTemplate,
   templateExercise,
+  templateFunctionalBlock,
   exercise,
   program,
   personalBest,
@@ -184,7 +185,16 @@ export async function getWorkoutWithDetails(id: number) {
     setsMap[el.id] = sets
   }
 
-  return { log, exerciseLogs, setsMap }
+  // Functional Fitness blocks come from the source template (display-only)
+  const functionalBlocks = log.workoutTemplateId
+    ? await db
+        .select()
+        .from(templateFunctionalBlock)
+        .where(eq(templateFunctionalBlock.workoutTemplateId, log.workoutTemplateId))
+        .orderBy(asc(templateFunctionalBlock.orderIndex))
+    : []
+
+  return { log, exerciseLogs, setsMap, functionalBlocks }
 }
 
 // ── Exercise logs ────────────────────────────────────────────────────────────
