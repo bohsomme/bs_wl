@@ -4,7 +4,8 @@ export const translations = {
   en: {
     appComingSoon: "App coming soon",
     tagline: "Elevate Your Weightlifting",
-    subtitle: "Choose the program that fits your goals and start training with a dedicated coach.",
+    subtitle:
+      "Whether you're a dedicated weightlifter or train functional fitness on the side, choose the program that fits your goals and start training with a dedicated coach.",
     option1Title: "BS-WL Standard",
     option1Badge: "Most Popular",
     option1Price: "250 NOK",
@@ -18,7 +19,8 @@ export const translations = {
     option2Badge: "Premium",
     option2Price: "500 NOK",
     option2Period: "/ month",
-    option2Description: "A fully individualized program built around your specific needs, schedule, and goals.",
+    option2Description:
+      "A fully individualized program built around your specific needs, schedule, goals, and your other training — perfect if you also do functional fitness.",
     option2Feature1: "Personalized version of the BS-WL program",
     option2Feature2: "Monthly block review & planning session",
     option2Feature3: "Chat with coach",
@@ -42,7 +44,8 @@ export const translations = {
   no: {
     appComingSoon: "App kommer snart",
     tagline: "Løft Vektløftingen Din",
-    subtitle: "Velg programmet som passer dine mål og begynn å trene med en dedikert coach.",
+    subtitle:
+      "Enten du er dedikert vektløfter eller trener funksjonell fitness ved siden av, velg programmet som passer dine mål og begynn å trene med en dedikert coach.",
     option1Title: "BS-WL Standard",
     option1Badge: "Mest populær",
     option1Price: "250 NOK",
@@ -56,7 +59,8 @@ export const translations = {
     option2Badge: "Premium",
     option2Price: "500 NOK",
     option2Period: "/ mnd",
-    option2Description: "Et fullstendig individualisert program bygget rundt dine spesifikke behov, timeplan og mål.",
+    option2Description:
+      "Et fullstendig individualisert program bygget rundt dine spesifikke behov, timeplan, mål og din øvrige trening — perfekt hvis du også driver med funksjonell fitness.",
     option2Feature1: "Personalisert versjon av BS-WL programmet",
     option2Feature2: "Månedlig gjennomgang av forrige blokk og planlegging av neste",
     option2Feature3: "Chat med coach",
