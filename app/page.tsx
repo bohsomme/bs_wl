@@ -8,14 +8,8 @@ export const metadata = {
 }
 
 export default async function LandingPage() {
-  // The landing page is public and must always render, even if the session
-  // lookup fails (e.g. transient DB issue). Never let it 500.
-  let isAuthenticated = false
-  try {
-    const session = await getSession()
-    isAuthenticated = !!session?.user
-  } catch (error) {
-    console.error("[v0] Landing page session lookup failed:", error)
-  }
-  return <LandingClient isAuthenticated={isAuthenticated} />
+  // getSession() never throws — it returns null if the lookup fails — so the
+  // public landing page always renders.
+  const session = await getSession()
+  return <LandingClient isAuthenticated={!!session?.user} />
 }
