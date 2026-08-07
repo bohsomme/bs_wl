@@ -119,20 +119,26 @@ export default async function HomePage() {
             <CardTitle className="text-base">Quick Access</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <Button asChild variant="outline" className="w-full justify-start gap-2">
-              <Link href="/programs">
-                <BookOpen className="w-4 h-4" /> Programs
-              </Link>
+            <Button
+              render={<Link href="/programs" />}
+              variant="outline"
+              className="h-11 w-full justify-start gap-3 px-4"
+            >
+              <BookOpen className="w-4 h-4" /> Programs
             </Button>
-            <Button asChild variant="outline" className="w-full justify-start gap-2">
-              <Link href="/exercises">
-                <Trophy className="w-4 h-4" /> Exercises &amp; PBs
-              </Link>
+            <Button
+              render={<Link href="/exercises" />}
+              variant="outline"
+              className="h-11 w-full justify-start gap-3 px-4"
+            >
+              <Trophy className="w-4 h-4" /> Exercises &amp; PBs
             </Button>
-            <Button asChild variant="outline" className="w-full justify-start gap-2">
-              <Link href="/log">
-                <History className="w-4 h-4" /> Workout Log
-              </Link>
+            <Button
+              render={<Link href="/log" />}
+              variant="outline"
+              className="h-11 w-full justify-start gap-3 px-4"
+            >
+              <History className="w-4 h-4" /> Workout Log
             </Button>
           </CardContent>
         </Card>
