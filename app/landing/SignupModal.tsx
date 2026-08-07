@@ -68,7 +68,9 @@ export function SignupModal({ open, onOpenChange, program, locale }: SignupModal
             <CheckCircle className="h-12 w-12 text-primary" />
             <div>
               <h3 className="text-lg font-semibold">{t.successTitle}</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{t.successMessage}</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {program === "personalized" ? t.successMessagePersonalized : t.successMessage}
+              </p>
             </div>
             <Button onClick={() => handleClose(false)} className="mt-2 w-full">
               {t.close}
