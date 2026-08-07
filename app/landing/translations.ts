@@ -36,6 +36,8 @@ export const translations = {
     submitting: "Sending...",
     successTitle: "You're on the list!",
     successMessage: "I'll be in touch shortly to get you set up.",
+    successMessagePersonalized:
+      "I'll be in touch shortly to set up a planning session and get your personalized program started.",
     errorMessage: "Something went wrong. Please try again.",
     cancel: "Cancel",
     close: "Close",
@@ -76,6 +78,8 @@ export const translations = {
     submitting: "Sender...",
     successTitle: "Du er på listen!",
     successMessage: "Jeg tar kontakt snart for å sette deg i gang.",
+    successMessagePersonalized:
+      "Jeg tar kontakt snart for å avtale en planleggingsøkt og sette i gang det personaliserte programmet ditt.",
     errorMessage: "Noe gikk galt. Prøv igjen.",
     cancel: "Avbryt",
     close: "Lukk",
