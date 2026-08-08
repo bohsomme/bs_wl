@@ -38,11 +38,9 @@ export function LandingClient({ isAuthenticated = false }: { isAuthenticated?: b
 
           <div className="flex items-center gap-4">
             {isAuthenticated ? (
-              <Button asChild size="sm" className="gap-1.5">
-                <Link href="/dashboard">
-                  {t.goToApp}
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
+              <Button render={<Link href="/dashboard" />} size="sm" className="gap-1.5">
+                {t.goToApp}
+                <ArrowRight className="h-3.5 w-3.5" />
               </Button>
             ) : (
               <span className="rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
@@ -51,11 +49,9 @@ export function LandingClient({ isAuthenticated = false }: { isAuthenticated?: b
             )}
 
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1.5">
-                  {locale === "en" ? "EN" : "NO"}
-                  <ChevronDown className="h-3.5 w-3.5 opacity-60" />
-                </Button>
+              <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="gap-1.5" />}>
+                {locale === "en" ? "EN" : "NO"}
+                <ChevronDown className="h-3.5 w-3.5 opacity-60" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => setLocale("en")} className="flex items-center justify-between gap-6">

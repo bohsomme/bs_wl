@@ -260,8 +260,8 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button asChild variant="ghost" size="icon">
-          <Link href="/programs"><ChevronLeft className="w-5 h-5" /></Link>
+        <Button render={<Link href="/programs" />} variant="ghost" size="icon">
+          <ChevronLeft className="w-5 h-5" />
         </Button>
         <div>
           <h1 className="text-xl font-bold">{program.name}</h1>
