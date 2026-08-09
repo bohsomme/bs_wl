@@ -10,7 +10,8 @@ import {
   getSetLogs,
 } from "@/lib/actions/workouts"
 import { addExercise } from "@/lib/actions/exercises"
-import type { Exercise, WorkoutLog, ExerciseLog, SetLog } from "@/lib/db/schema"
+import type { Exercise, WorkoutLog, ExerciseLog, SetLog, TemplateFunctionalBlock } from "@/lib/db/schema"
+import { functionalHeading } from "@/lib/functional-fitness"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -30,7 +31,7 @@ import {
 import { cn } from "@/lib/utils"
 import {
   ChevronLeft, ChevronRight, CheckCircle2, XCircle, SkipForward, Plus,
-  AlertTriangle, NotebookPen, Dumbbell, Flag
+  AlertTriangle, NotebookPen, Dumbbell, Flag, Flame, Clock
 } from "lucide-react"
 
 type ExerciseLogRow = {
@@ -42,6 +43,7 @@ type WorkoutDetails = {
   log: WorkoutLog
   exerciseLogs: ExerciseLogRow[]
   setsMap: Record<number, SetLog[]>
+  functionalBlocks?: TemplateFunctionalBlock[]
 }
 
 interface WorkoutSessionProps {
@@ -60,6 +62,7 @@ export function WorkoutSession({ details: initialDetails, exercises }: WorkoutSe
   const [log] = useState(initialDetails.log)
   const [exerciseLogs, setExerciseLogs] = useState(initialDetails.exerciseLogs)
   const [setsMap, setSetsMap] = useState(initialDetails.setsMap)
+  const functionalBlocks = initialDetails.functionalBlocks ?? []
 
   const [phase, setPhase] = useState<Phase>("readiness")
   const [currentExIdx, setCurrentExIdx] = useState(0)
@@ -358,10 +361,41 @@ export function WorkoutSession({ details: initialDetails, exercises }: WorkoutSe
 
   if (!currentRow) {
     return (
-      <div className="max-w-2xl mx-auto text-center py-12 space-y-3">
-        <p className="font-medium">No exercises in this workout.</p>
-        <Button onClick={() => setAddExOpen(true)}>Add Exercise</Button>
-        <Button variant="outline" onClick={() => setPhase("finish")}>Finish Anyway</Button>
+      <div className="max-w-2xl mx-auto space-y-4">
+        {functionalBlocks.length > 0 && (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <Flame className="w-4 h-4 text-primary" /> Functional Fitness
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2.5">
+              {functionalBlocks.map((b) => (
+                <div key={b.id} className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-sm font-medium">{functionalHeading(b)}</span>
+                    {b.source && <Badge variant="secondary" className="text-xs">{b.source}</Badge>}
+                    {b.durationMin != null && (
+                      <Badge variant="outline" className="text-xs gap-1">
+                        <Clock className="w-3 h-3" /> {b.durationMin} min
+                      </Badge>
+                    )}
+                  </div>
+                  {b.details && (
+                    <p className="text-xs text-muted-foreground whitespace-pre-wrap">{b.details}</p>
+                  )}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+        <div className="text-center py-8 space-y-3">
+          <p className="font-medium">No strength exercises in this workout.</p>
+          <div className="flex flex-wrap gap-2 justify-center">
+            <Button onClick={() => setAddExOpen(true)}>Add Exercise</Button>
+            <Button variant="outline" onClick={() => setPhase("finish")}>Finish Workout</Button>
+          </div>
+        </div>
       </div>
     )
   }
@@ -409,6 +443,35 @@ export function WorkoutSession({ details: initialDetails, exercises }: WorkoutSe
           />
         ))}
       </div>
+
+      {/* Functional Fitness reference */}
+      {functionalBlocks.length > 0 && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-1.5">
+              <Flame className="w-4 h-4 text-primary" /> Functional Fitness
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2.5">
+            {functionalBlocks.map((b) => (
+              <div key={b.id} className="space-y-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-sm font-medium">{functionalHeading(b)}</span>
+                  {b.source && <Badge variant="secondary" className="text-xs">{b.source}</Badge>}
+                  {b.durationMin != null && (
+                    <Badge variant="outline" className="text-xs gap-1">
+                      <Clock className="w-3 h-3" /> {b.durationMin} min
+                    </Badge>
+                  )}
+                </div>
+                {b.details && (
+                  <p className="text-xs text-muted-foreground whitespace-pre-wrap">{b.details}</p>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Exercise Card */}
       <Card>

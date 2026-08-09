@@ -114,6 +114,19 @@ export const templateExercise = pgTable("template_exercise", {
   createdAt: timestamp("createdAt", { withTimezone: true }).notNull().defaultNow(),
 })
 
+// kind: 'metcon' | 'zone2' | 'mobility' | 'custom'
+export const templateFunctionalBlock = pgTable("template_functional_block", {
+  id: serial("id").primaryKey(),
+  workoutTemplateId: integer("workoutTemplateId").notNull(),
+  orderIndex: integer("orderIndex").notNull().default(0),
+  kind: text("kind").notNull().default("custom"),
+  title: text("title"),
+  source: text("source"),
+  details: text("details"),
+  durationMin: integer("durationMin"),
+  createdAt: timestamp("createdAt", { withTimezone: true }).notNull().defaultNow(),
+})
+
 export const workoutLog = pgTable("workout_log", {
   id: serial("id").primaryKey(),
   userId: text("userId").notNull(),
@@ -162,6 +175,7 @@ export type PersonalBest = typeof personalBest.$inferSelect
 export type Program = typeof program.$inferSelect
 export type WorkoutTemplate = typeof workoutTemplate.$inferSelect
 export type TemplateExercise = typeof templateExercise.$inferSelect
+export type TemplateFunctionalBlock = typeof templateFunctionalBlock.$inferSelect
 export type WorkoutLog = typeof workoutLog.$inferSelect
 export type ExerciseLog = typeof exerciseLog.$inferSelect
 export type SetLog = typeof setLog.$inferSelect

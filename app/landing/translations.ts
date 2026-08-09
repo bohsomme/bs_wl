@@ -3,6 +3,7 @@ export type Locale = "en" | "no"
 export const translations = {
   en: {
     appComingSoon: "App coming soon",
+    goToApp: "Go to app",
     tagline: "Elevate Your Weightlifting",
     subtitle:
       "Whether you're a dedicated weightlifter or train functional fitness, choose the program that fits your goals and start training with a dedicated coach.",
@@ -45,6 +46,7 @@ export const translations = {
   },
   no: {
     appComingSoon: "App kommer snart",
+    goToApp: "Åpne appen",
     tagline: "Løft Vektløftingen Din",
     subtitle:
       "Enten du er dedikert vektløfter eller trener funksjonell fitness, velg programmet som passer dine mål og begynn å trene med en dedikert coach.",

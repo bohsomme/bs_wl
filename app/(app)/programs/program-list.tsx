@@ -81,10 +81,8 @@ export function ProgramList({ initialPrograms }: ProgramListProps) {
     <div className="space-y-4">
       <div className="flex justify-end">
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="w-4 h-4" /> New Program
-            </Button>
+          <DialogTrigger render={<Button className="gap-2" />}>
+            <Plus className="w-4 h-4" /> New Program
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -160,10 +158,8 @@ export function ProgramList({ initialPrograms }: ProgramListProps) {
                       </Badge>
                     )}
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
+                      <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-7 w-7" />}>
+                        <MoreHorizontal className="w-4 h-4" />
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         {!p.isActive && (
@@ -190,10 +186,8 @@ export function ProgramList({ initialPrograms }: ProgramListProps) {
                 <p className="text-xs text-muted-foreground mb-3">
                   {p.totalWeeks} week{p.totalWeeks !== 1 ? "s" : ""}
                 </p>
-                <Button asChild variant="outline" size="sm" className="w-full gap-1.5">
-                  <Link href={`/programs/${p.id}`}>
-                    View &amp; Edit <ChevronRight className="w-3.5 h-3.5" />
-                  </Link>
+                <Button render={<Link href={`/programs/${p.id}`} />} variant="outline" size="sm" className="w-full gap-1.5">
+                  View &amp; Edit <ChevronRight className="w-3.5 h-3.5" />
                 </Button>
               </CardContent>
             </Card>

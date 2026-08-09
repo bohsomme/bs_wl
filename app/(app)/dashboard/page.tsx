@@ -57,8 +57,8 @@ export default async function HomePage() {
                 <p className="text-muted-foreground text-xs">{active.name}</p>
               </div>
             </div>
-            <Button asChild size="sm">
-              <Link href={`/workout/${active.id}`}>Resume</Link>
+            <Button render={<Link href={`/workout/${active.id}`} />} size="sm">
+              Resume
             </Button>
           </CardContent>
         </Card>
@@ -105,8 +105,8 @@ export default async function HomePage() {
                     Set up a program to see your next workout here
                   </p>
                 </div>
-                <Button asChild variant="outline" size="sm">
-                  <Link href="/programs">Go to Programs</Link>
+                <Button render={<Link href="/programs" />} variant="outline" size="sm">
+                  Go to Programs
                 </Button>
               </div>
             )}
@@ -119,20 +119,26 @@ export default async function HomePage() {
             <CardTitle className="text-base">Quick Access</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <Button asChild variant="outline" className="w-full justify-start gap-2">
-              <Link href="/programs">
-                <BookOpen className="w-4 h-4" /> Programs
-              </Link>
+            <Button
+              render={<Link href="/programs" />}
+              variant="outline"
+              className="h-11 w-full justify-start gap-3 px-4"
+            >
+              <BookOpen className="w-4 h-4" /> Programs
             </Button>
-            <Button asChild variant="outline" className="w-full justify-start gap-2">
-              <Link href="/exercises">
-                <Trophy className="w-4 h-4" /> Exercises &amp; PBs
-              </Link>
+            <Button
+              render={<Link href="/exercises" />}
+              variant="outline"
+              className="h-11 w-full justify-start gap-3 px-4"
+            >
+              <Trophy className="w-4 h-4" /> Exercises &amp; PBs
             </Button>
-            <Button asChild variant="outline" className="w-full justify-start gap-2">
-              <Link href="/log">
-                <History className="w-4 h-4" /> Workout Log
-              </Link>
+            <Button
+              render={<Link href="/log" />}
+              variant="outline"
+              className="h-11 w-full justify-start gap-3 px-4"
+            >
+              <History className="w-4 h-4" /> Workout Log
             </Button>
           </CardContent>
         </Card>
@@ -143,8 +149,8 @@ export default async function HomePage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">Recent Workouts</h2>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/log">View all</Link>
+            <Button render={<Link href="/log" />} variant="ghost" size="sm">
+              View all
             </Button>
           </div>
           <div className="space-y-2">
