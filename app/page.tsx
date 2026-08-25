@@ -7,6 +7,8 @@ export const metadata = {
     "Choose your BS-WL weightlifting coaching program. Standard or Personalized — get structured training, coach access, and video review of your lifts.",
 }
 
+export const dynamic = "force-dynamic"
+
 export default async function LandingPage() {
   // getSession() never throws — it returns null if the lookup fails — so the
   // public landing page always renders.

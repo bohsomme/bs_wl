@@ -2,6 +2,8 @@ import { redirect } from "next/navigation"
 import { getSession } from "@/lib/actions/auth"
 import { Nav } from "@/components/nav"
 
+export const dynamic = "force-dynamic"
+
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession()
   if (!session?.user) redirect("/sign-in")

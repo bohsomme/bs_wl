@@ -15,6 +15,13 @@ export async function getSession() {
   try {
     return await auth.api.getSession({ headers: await headers() })
   } catch (error) {
+    // Next throws this internally during static-generation attempts on
+    // routes that use dynamic APIs like headers(). It must be rethrown so
+    // Next can correctly bail out to dynamic rendering — swallowing it here
+    // would make Next think the route rendered successfully as static.
+    if (error instanceof Error && (error as { digest?: string }).digest === "DYNAMIC_SERVER_USAGE") {
+      throw error
+    }
     console.error("[v0] getSession failed:", error)
     return null
   }
