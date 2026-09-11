@@ -7,10 +7,9 @@ import {
   addExerciseLog,
   updateExerciseLog,
   upsertSetLog,
-  getSetLogs,
 } from "@/lib/actions/workouts"
 import { addExercise } from "@/lib/actions/exercises"
-import type { Exercise, WorkoutLog, ExerciseLog, SetLog } from "@/lib/db/schema"
+import type { Exercise, WorkoutLog, ExerciseLog, SetLog, TemplateExercise } from "@/lib/db/schema"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -41,19 +40,21 @@ type ExerciseLogRow = {
 type WorkoutDetails = {
   log: WorkoutLog
   exerciseLogs: ExerciseLogRow[]
+  prescriptionMap: Record<number, TemplateExercise>
   setsMap: Record<number, SetLog[]>
 }
 
 interface WorkoutSessionProps {
   details: WorkoutDetails
   exercises: Exercise[]
+  pbWeights: Record<number, string>
 }
 
 type Phase = "readiness" | "exercises" | "finish"
 
 const RPE_OPTIONS = ["6", "6.5", "7", "7.5", "8", "8.5", "9", "9.5", "10"]
 
-export function WorkoutSession({ details: initialDetails, exercises }: WorkoutSessionProps) {
+export function WorkoutSession({ details: initialDetails, exercises, pbWeights }: WorkoutSessionProps) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
 
@@ -65,8 +66,8 @@ export function WorkoutSession({ details: initialDetails, exercises }: WorkoutSe
   const [currentExIdx, setCurrentExIdx] = useState(0)
 
   // Readiness phase state
-  const [readiness, setReadiness] = useState(log.readiness?.toString() ?? "")
-  const [barFeel, setBarFeel] = useState(log.barFeel?.toString() ?? "")
+  const [readiness, setReadiness] = useState(log.readiness != null && log.readiness <= 5 ? String(log.readiness) : "")
+  const [barFeel, setBarFeel] = useState(log.barFeel != null && log.barFeel <= 5 ? String(log.barFeel) : "")
   const [preNotes, setPreNotes] = useState(log.preNotes ?? "")
 
   // Per-exercise state (keyed by exerciseLogId)
@@ -76,7 +77,8 @@ export function WorkoutSession({ details: initialDetails, exercises }: WorkoutSe
   // Per-set state (keyed by `${elId}-${setNum}-${isMakeup}`)
   const [setReps, setSetReps] = useState<Record<string, string>>({})
   const [setWeight, setSetWeight] = useState<Record<string, string>>({})
-  const [setMissed, setSetMissed] = useState<Record<string, boolean>>({})
+  const [workingSets, setWorkingSets] = useState<Record<number, number>>({})
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [missReason, setMissReason] = useState<Record<string, string>>({})
   const [makeupSets, setMakeupSets] = useState<Record<number, number>>({}) // elId -> count of makeup sets
 
@@ -107,44 +109,71 @@ export function WorkoutSession({ details: initialDetails, exercises }: WorkoutSe
 
   function numSets(row: ExerciseLogRow) {
     // Use number from sets if saved, else derive from template (default 3)
-    return Math.max(getSets(row.el.id).filter((s) => !s.isMakeup).length, 3)
+    return Math.max(initialDetails.prescriptionMap[row.el.id]?.setsMin ?? 3, workingSets[row.el.id] ?? 0, ...getSets(row.el.id).filter((s) => !s.isMakeup).map((s) => s.setNumber))
   }
 
-  async function saveReadiness() {
+  const [checkInStatus, setCheckInStatus] = useState("")
+
+  async function saveReadiness(beginWorkout = false) {
     startTransition(async () => {
+      try {
       await updateWorkoutLog(log.id, {
         readiness: readiness ? Number(readiness) : undefined,
         barFeel: barFeel ? Number(barFeel) : undefined,
-        preNotes: preNotes || undefined,
+        preNotes,
       })
-      setPhase("exercises")
+      setCheckInStatus("Saved")
+      if (beginWorkout) setPhase("exercises")
+      } catch {
+        setCheckInStatus("Could not save. Please try again.")
+      }
     })
   }
 
-  async function saveSet(elId: number, setNum: number, isMakeup = false) {
+  function defaultWeight(elId: number) {
+    const te = initialDetails.prescriptionMap[elId]
+    if (te?.weightType === "fixed") return te.weightValue ?? ""
+    const row = exerciseLogs.find((row) => row.el.id === elId)
+    const pb = row ? pbWeights[row.exercise.id] : undefined
+    if (te?.weightType !== "pb_percent" || te.weightValue == null || pb == null) return ""
+    const weight = Number(pb) * Number(te.weightValue) / 100
+    return Number.isFinite(weight) && weight >= 0 ? String(Number(weight.toFixed(2))) : ""
+  }
+
+  function saveSet(elId: number, setNum: number, isMakeup = false, missed = false, addMakeup = false) {
     const k = setKey(elId, setNum, isMakeup)
-    const missed = setMissed[k] ?? false
+    const saved = getSets(elId).find((s) => s.setNumber === setNum && s.isMakeup === isMakeup)
+    const te = initialDetails.prescriptionMap[elId]
+    const reps = setReps[k] ?? saved?.reps?.toString() ?? te?.repsMin.toString() ?? ""
+    const weight = setWeight[k] ?? saved?.weight ?? defaultWeight(elId)
+    if ((reps !== "" && (!Number.isInteger(Number(reps)) || Number(reps) < 0)) ||
+        (weight !== "" && (!Number.isFinite(Number(weight)) || Number(weight) < 0))) {
+      setSaveError("Enter a valid weight and whole-number reps, both zero or greater.")
+      return
+    }
     startTransition(async () => {
-      await upsertSetLog({
-        exerciseLogId: elId,
-        setNumber: setNum,
-        isMakeup,
-        reps: setReps[k] ? Number(setReps[k]) : undefined,
-        weight: setWeight[k] ? Number(setWeight[k]) : undefined,
-        missed,
-        missReason: missReason[k] || undefined,
-      })
+      setSaveError(null)
+      try {
+        const result = await upsertSetLog({
+          exerciseLogId: elId, setNumber: setNum, isMakeup,
+          reps: reps === "" ? undefined : Number(reps),
+          weight: weight === "" ? undefined : Number(weight),
+          missed, missReason: missReason[k] ?? saved?.missReason ?? undefined,
+        })
+        setSetsMap((prev) => ({ ...prev, [elId]: [
+          ...(prev[elId] ?? []).filter((s) => !(s.setNumber === setNum && s.isMakeup === isMakeup)), result,
+        ] }))
+        if (missed) setMissModalKey(null)
+        if (addMakeup) addMakeupSet(elId)
+      } catch {
+        setSaveError("Could not save the set. Please try again.")
+      }
     })
-  }
-
-  function markMissed(elId: number, setNum: number) {
-    const k = setKey(elId, setNum)
-    setSetMissed((prev) => ({ ...prev, [k]: true }))
-    setMissModalKey(k)
   }
 
   function addMakeupSet(elId: number) {
-    setMakeupSets((prev) => ({ ...prev, [elId]: (prev[elId] ?? 0) + 1 }))
+    const count = Math.max(0, ...getSets(elId).filter((s) => s.isMakeup).map((s) => s.setNumber))
+    setMakeupSets((prev) => ({ ...prev, [elId]: Math.max(prev[elId] ?? 0, count) + 1 }))
   }
 
   async function skipExercise(row: ExerciseLogRow) {
@@ -207,6 +236,9 @@ export function WorkoutSession({ details: initialDetails, exercises }: WorkoutSe
   async function finishWorkout() {
     startTransition(async () => {
       await updateWorkoutLog(log.id, {
+        readiness: readiness ? Number(readiness) : undefined,
+        barFeel: barFeel ? Number(barFeel) : undefined,
+        preNotes,
         sessionRpe: sessionRpe ? Number(sessionRpe) : undefined,
         postNotes: postNotes || undefined,
         status: "completed",
@@ -216,9 +248,43 @@ export function WorkoutSession({ details: initialDetails, exercises }: WorkoutSe
     })
   }
 
-  const allDone = exerciseLogs.every((r) => r.el.skipped)
 
   // ── Readiness Phase ──────────────────────────────────────────────────────
+
+  const checkInPanel = (
+    <section aria-label="Workout check-in" className="rounded-xl border bg-background p-3 shadow-sm space-y-2">
+      <div className="grid grid-cols-2 gap-3">
+        {[
+          { label: "Readiness", value: readiness, setValue: setReadiness },
+          { label: "Bar feel", value: barFeel, setValue: setBarFeel },
+        ].map(({ label, value, setValue }) => (
+          <fieldset key={label} className="min-w-0 space-y-1">
+            <legend className="text-sm font-medium">{label} (1-5)</legend>
+            <div className="grid grid-cols-5 gap-1">
+              {[1, 2, 3, 4, 5].map((rating) => (
+                <button key={rating} type="button" aria-label={label + ": " + rating + " out of 5"}
+                  aria-pressed={value === String(rating)}
+                  onClick={() => { setValue(String(rating)); setCheckInStatus("Unsaved changes") }}
+                  className={cn("h-11 rounded-lg text-sm font-medium border transition-colors focus-visible:outline-2 focus-visible:outline-ring",
+                    value === String(rating) ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-accent")}
+                >{rating}</button>
+              ))}
+            </div>
+          </fieldset>
+        ))}
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor="workout-check-in-notes">Notes (optional)</Label>
+        <Textarea id="workout-check-in-notes" placeholder="How are you feeling? Soreness, stress, sleep..."
+          rows={2} className="field-sizing-fixed h-16 resize-none" value={preNotes}
+          onChange={(e) => { setPreNotes(e.target.value); setCheckInStatus("Unsaved changes") }} />
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <p role="status" className="text-xs text-muted-foreground">{checkInStatus}</p>
+        <Button size="sm" variant="outline" disabled={pending} onClick={() => saveReadiness()}>Save check-in</Button>
+      </div>
+    </section>
+  )
 
   if (phase === "readiness") {
     return (
@@ -233,66 +299,10 @@ export function WorkoutSession({ details: initialDetails, exercises }: WorkoutSe
           </div>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">How are you feeling today?</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="space-y-2">
-              <Label>Readiness (1–10)</Label>
-              <div className="flex gap-2 flex-wrap">
-                {Array.from({ length: 10 }, (_, i) => String(i + 1)).map((v) => (
-                  <button
-                    key={v}
-                    onClick={() => setReadiness(v)}
-                    className={cn(
-                      "w-9 h-9 rounded-lg text-sm font-medium border transition-colors",
-                      readiness === v
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "border-border hover:bg-accent"
-                    )}
-                  >
-                    {v}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Bar feel (1–10)</Label>
-              <div className="flex gap-2 flex-wrap">
-                {Array.from({ length: 10 }, (_, i) => String(i + 1)).map((v) => (
-                  <button
-                    key={v}
-                    onClick={() => setBarFeel(v)}
-                    className={cn(
-                      "w-9 h-9 rounded-lg text-sm font-medium border transition-colors",
-                      barFeel === v
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "border-border hover:bg-accent"
-                    )}
-                  >
-                    {v}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Notes (optional)</Label>
-              <Textarea
-                placeholder="How are you feeling? Any soreness, stress, sleep..."
-                rows={3}
-                value={preNotes}
-                onChange={(e) => setPreNotes(e.target.value)}
-              />
-            </div>
-
-            <Button onClick={saveReadiness} disabled={pending} className="w-full gap-2">
-              Start Workout <ChevronRight className="w-4 h-4" />
-            </Button>
-          </CardContent>
-        </Card>
+        {checkInPanel}
+        <Button onClick={() => saveReadiness(true)} disabled={pending} className="w-full gap-2">
+          Start Workout <ChevronRight className="w-4 h-4" />
+        </Button>
       </div>
     )
   }
@@ -311,6 +321,8 @@ export function WorkoutSession({ details: initialDetails, exercises }: WorkoutSe
             <p className="text-sm text-muted-foreground">How did the session go?</p>
           </div>
         </div>
+
+        {checkInPanel}
 
         <Card>
           <CardContent className="pt-6 space-y-5">
@@ -359,6 +371,7 @@ export function WorkoutSession({ details: initialDetails, exercises }: WorkoutSe
   if (!currentRow) {
     return (
       <div className="max-w-2xl mx-auto text-center py-12 space-y-3">
+        {checkInPanel}
         <p className="font-medium">No exercises in this workout.</p>
         <Button onClick={() => setAddExOpen(true)}>Add Exercise</Button>
         <Button variant="outline" onClick={() => setPhase("finish")}>Finish Anyway</Button>
@@ -367,14 +380,13 @@ export function WorkoutSession({ details: initialDetails, exercises }: WorkoutSe
   }
 
   const elId = currentRow.el.id
-  const sets = getSets(elId).filter((s) => !s.isMakeup)
-  const makeups = getSets(elId).filter((s) => s.isMakeup)
-  const totalSets = Math.max(sets.length, numSets(currentRow))
-  const extraMakeupCount = makeupSets[elId] ?? 0
-
-  const hasMiss = Array.from({ length: totalSets }, (_, i) => i + 1).some(
-    (n) => setMissed[setKey(elId, n)]
-  )
+  const te = initialDetails.prescriptionMap[elId]
+  const totalSets = numSets(currentRow)
+  const extraMakeupCount = Math.max(makeupSets[elId] ?? 0, ...getSets(elId).filter((s) => s.isMakeup).map((s) => s.setNumber))
+  const range = (min: number, max: number | null) => max != null && max !== min ? min + "-" + max : String(min)
+  const weightHint = te?.weightType === "pb_percent"
+    ? (te.weightValue == null ? "" : Number(te.weightValue)) + "% of PB"
+    : te?.weightType === "rpe" ? "RPE " + (te.rpeTarget ?? "not set") : "kg"
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
@@ -393,6 +405,8 @@ export function WorkoutSession({ details: initialDetails, exercises }: WorkoutSe
           <Plus className="w-3.5 h-3.5" /> Add
         </Button>
       </div>
+
+      {checkInPanel}
 
       {/* Progress indicator */}
       <div className="flex gap-1">
@@ -432,114 +446,52 @@ export function WorkoutSession({ details: initialDetails, exercises }: WorkoutSe
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {/* Sets table */}
+          {te && <p className="text-sm text-muted-foreground">
+            {range(te.setsMin, te.setsMax)} sets &times; {range(te.repsMin, te.repsMax)} reps
+            {te.weightType === "fixed" && te.weightValue != null ? " - " + Number(te.weightValue) + " kg" : " - " + weightHint}
+          </p>}
+          {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
           <div className="space-y-2">
-            <div className="grid grid-cols-12 text-xs text-muted-foreground font-medium px-1 gap-2">
-              <span className="col-span-1">#</span>
-              <span className="col-span-4">Weight (kg)</span>
-              <span className="col-span-3">Reps</span>
-              <span className="col-span-4">Actions</span>
-            </div>
-            {Array.from({ length: totalSets }, (_, i) => {
-              const n = i + 1
-              const k = setKey(elId, n)
-              const missed = setMissed[k] ?? false
+            {Array.from({ length: totalSets + extraMakeupCount }, (_, i) => {
+              const isMakeup = i >= totalSets
+              const n = isMakeup ? i - totalSets + 1 : i + 1
+              const k = setKey(elId, n, isMakeup)
+              const saved = getSets(elId).find((s) => s.setNumber === n && s.isMakeup === isMakeup)
               return (
-                <div
-                  key={n}
-                  className={cn(
-                    "grid grid-cols-12 items-center gap-2 px-1 py-1 rounded-lg",
-                    missed ? "bg-destructive/10" : ""
-                  )}
-                >
-                  <span className="col-span-1 text-sm text-muted-foreground">{n}</span>
-                  <div className="col-span-4">
-                    <Input
-                      type="number"
-                      step="0.5"
-                      placeholder="kg"
-                      value={setWeight[k] ?? ""}
-                      onChange={(e) => setSetWeight((prev) => ({ ...prev, [k]: e.target.value }))}
-                      onBlur={() => saveSet(elId, n)}
-                      disabled={missed}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="col-span-3">
-                    <Input
-                      type="number"
-                      placeholder="reps"
-                      value={setReps[k] ?? ""}
-                      onChange={(e) => setSetReps((prev) => ({ ...prev, [k]: e.target.value }))}
-                      onBlur={() => saveSet(elId, n)}
-                      disabled={missed}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="col-span-4 flex gap-1">
-                    {!missed ? (
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-8 w-8 shrink-0 border-destructive/50 hover:bg-destructive/10 text-destructive"
-                        onClick={() => markMissed(elId, n)}
-                        title="Mark as missed"
-                      >
-                        <XCircle className="w-4 h-4" />
-                      </Button>
-                    ) : (
-                      <div className="flex items-center gap-1">
-                        <Badge variant="destructive" className="text-xs">Miss</Badge>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() => addMakeupSet(elId)}
-                          title="Add makeup set"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
+                <div key={k} className={cn("rounded-lg border p-2 space-y-2", saved ? saved.missed ? "border-destructive/40 bg-destructive/5" : "border-primary/40 bg-primary/5" : "border-border")}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{isMakeup ? "Makeup set" : "Set"} {n}</span>
+                    {te?.weightType === "pb_percent" && te.weightValue != null && (
+                      <span className="rounded-md border bg-muted px-2 py-1 text-xs font-medium">Target: {Number(te.weightValue)}% of PB</span>
                     )}
+                    {saved && <Badge variant={saved.missed ? "destructive" : "secondary"}>{saved.missed ? "Miss" : "Made"}</Badge>}
+                  </div>
+                  <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.75fr)_auto_auto] items-end gap-1.5">
+                    <div className="min-w-0 space-y-1">
+                      <Label htmlFor={"weight-" + k} className="text-xs">Weight (kg)</Label>
+                      <Input id={"weight-" + k} type="number" min={0} step="0.5" placeholder="kg" className="h-9 px-2"
+                        value={setWeight[k] ?? saved?.weight ?? defaultWeight(elId)}
+                        onChange={(e) => setSetWeight((prev) => ({ ...prev, [k]: e.target.value }))} disabled={pending} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor={"reps-" + k} className="text-xs">Reps{te ? " (" + range(te.repsMin, te.repsMax) + ")" : ""}</Label>
+                      <Input id={"reps-" + k} type="number" min={0} step={1} placeholder="reps" className="h-9 px-2"
+                        value={setReps[k] ?? saved?.reps?.toString() ?? te?.repsMin.toString() ?? ""}
+                        onChange={(e) => setSetReps((prev) => ({ ...prev, [k]: e.target.value }))} disabled={pending} />
+                    </div>
+                    <Button size="sm" className="px-2" variant={saved && !saved.missed ? "default" : "outline"} disabled={pending}
+                      onClick={() => saveSet(elId, n, isMakeup)}>Make</Button>
+                    <Button size="sm" className="px-2" variant={saved?.missed ? "destructive" : "outline"} disabled={pending}
+                      onClick={() => setMissModalKey(k)}>Miss</Button>
                   </div>
                 </div>
               )
             })}
-
-            {/* Makeup sets */}
-            {Array.from({ length: extraMakeupCount }, (_, i) => {
-              const n = i + 1
-              const k = setKey(elId, n, true)
-              return (
-                <div key={`makeup-${n}`} className="grid grid-cols-12 items-center gap-2 px-1 py-1 rounded-lg bg-primary/5">
-                  <span className="col-span-1 text-xs text-primary font-bold">+{n}</span>
-                  <div className="col-span-4">
-                    <Input
-                      type="number"
-                      step="0.5"
-                      placeholder="kg"
-                      value={setWeight[k] ?? ""}
-                      onChange={(e) => setSetWeight((prev) => ({ ...prev, [k]: e.target.value }))}
-                      onBlur={() => saveSet(elId, n, true)}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="col-span-3">
-                    <Input
-                      type="number"
-                      placeholder="reps"
-                      value={setReps[k] ?? ""}
-                      onChange={(e) => setSetReps((prev) => ({ ...prev, [k]: e.target.value }))}
-                      onBlur={() => saveSet(elId, n, true)}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="col-span-4">
-                    <Badge className="text-xs">Makeup</Badge>
-                  </div>
-                </div>
-              )
-            })}
+            {te?.setsMax != null && totalSets < te.setsMax && (
+              <Button variant="outline" size="sm" onClick={() => setWorkingSets((prev) => ({ ...prev, [elId]: totalSets + 1 }))}>
+                <Plus className="w-4 h-4" /> Add set ({totalSets}/{te.setsMax})
+              </Button>
+            )}
           </div>
 
           <Separator />
@@ -633,31 +585,31 @@ export function WorkoutSession({ details: initialDetails, exercises }: WorkoutSe
               />
             </div>
           </div>
+          {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
           <DialogFooter className="gap-2">
             <Button
               variant="outline"
+              disabled={pending}
               onClick={() => {
                 if (missModalKey) {
                   const parts = missModalKey.split("-")
                   const elId = Number(parts[0])
                   const setNum = Number(parts[1])
-                  saveSet(elId, setNum)
+                  saveSet(elId, setNum, parts[2] === "m", true)
                 }
-                setMissModalKey(null)
               }}
             >
-              Save
+              Save Miss
             </Button>
             <Button
+              disabled={pending}
               onClick={() => {
                 if (missModalKey) {
                   const parts = missModalKey.split("-")
                   const elId = Number(parts[0])
                   const setNum = Number(parts[1])
-                  saveSet(elId, setNum)
-                  addMakeupSet(elId)
+                  saveSet(elId, setNum, parts[2] === "m", true, true)
                 }
-                setMissModalKey(null)
               }}
             >
               Save &amp; Add Makeup Set

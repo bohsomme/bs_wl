@@ -1,4 +1,5 @@
 "use server"
+import { calculateOneRepMax } from "@/lib/strength"
 
 import { db } from "@/lib/db"
 import {
@@ -11,7 +12,7 @@ import {
   program,
   personalBest,
 } from "@/lib/db/schema"
-import { asc, desc, eq, and } from "drizzle-orm"
+import { asc, desc, eq, and, gte } from "drizzle-orm"
 import { getUserId } from "./auth"
 import { revalidatePath } from "next/cache"
 
@@ -27,14 +28,14 @@ export async function getNextWorkout() {
     .where(and(eq(program.userId, userId), eq(program.isActive, true)))
     .limit(1)
 
-  if (!activeProgram) return null
+  if (!activeProgram?.startDate) return null
 
   // Get all templates for this program
   const templates = await db
     .select()
     .from(workoutTemplate)
     .where(eq(workoutTemplate.programId, activeProgram.id))
-    .orderBy(asc(workoutTemplate.weekNumber), asc(workoutTemplate.dayOfWeek))
+    .orderBy(asc(workoutTemplate.weekNumber), asc(workoutTemplate.dayNumber))
 
   if (templates.length === 0) return null
 
@@ -46,51 +47,24 @@ export async function getNextWorkout() {
       and(
         eq(workoutLog.userId, userId),
         eq(workoutLog.programId, activeProgram.id),
-        eq(workoutLog.status, "completed")
+        eq(workoutLog.status, "completed"),
+        activeProgram.assignedAt ? gte(workoutLog.startedAt, activeProgram.assignedAt) : undefined
       )
     )
     .orderBy(desc(workoutLog.completedAt))
     .limit(1)
 
-  // Calculate which template + week is next
-  let nextTemplateId: number
-  let nextWeek: number
-
-  if (!lastLog?.workoutTemplateId) {
-    // Start from first template, week 1
-    nextTemplateId = templates[0].id
-    nextWeek = 1
-  } else {
-    const lastIdx = templates.findIndex((t) => t.id === lastLog.workoutTemplateId)
-    if (lastIdx === -1 || lastIdx === templates.length - 1) {
-      // Cycle back to start (or restart block)
-      nextTemplateId = templates[0].id
-      nextWeek = 1
-    } else {
-      const lastTemplate = templates[lastIdx]
-      const nextTemplate = templates[lastIdx + 1]
-      // If week resets in the loop
-      nextTemplateId = nextTemplate.id
-      nextWeek = nextTemplate.weekNumber > lastTemplate.weekNumber
-        ? nextTemplate.weekNumber
-        : lastTemplate.weekNumber
-    }
-  }
-
-  const nextTemplate = templates.find((t) => t.id === nextTemplateId)!
-
-  // Calculate next date: find the next occurrence of nextTemplate.dayOfWeek
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  let nextDate = new Date(today)
-  const daysUntil = (nextTemplate.dayOfWeek - today.getDay() + 7) % 7
-  nextDate.setDate(today.getDate() + (daysUntil === 0 ? 0 : daysUntil))
+  const lastIdx = templates.findIndex((t) => t.id === lastLog?.workoutTemplateId)
+  const nextTemplate = templates[lastIdx + 1]
+  if (!nextTemplate) return null
+  const nextDate = new Date(`${activeProgram.startDate}T00:00:00`)
+  nextDate.setDate(nextDate.getDate() + (nextTemplate.weekNumber - 1) * 7 + nextTemplate.dayNumber - 1)
 
   return {
     program: activeProgram,
     template: nextTemplate,
     nextDate,
-    weekNumber: nextWeek,
+    weekNumber: nextTemplate.weekNumber,
   }
 }
 
@@ -104,6 +78,11 @@ export async function startWorkout(data: {
   barFeel?: number
   preNotes?: string
 }) {
+  for (const rating of [data.readiness, data.barFeel]) {
+    if (rating !== undefined && (!Number.isInteger(rating) || rating < 1 || rating > 5)) {
+      throw new Error("Readiness and bar feel must be whole numbers from 1 to 5.")
+    }
+  }
   const userId = await getUserId()
   const [log] = await db
     .insert(workoutLog)
@@ -125,6 +104,11 @@ export async function updateWorkoutLog(
     completedAt: Date
   }>
 ) {
+  for (const rating of [data.readiness, data.barFeel]) {
+    if (rating !== undefined && (!Number.isInteger(rating) || rating < 1 || rating > 5)) {
+      throw new Error("Readiness and bar feel must be whole numbers from 1 to 5.")
+    }
+  }
   const userId = await getUserId()
   const payload: Record<string, unknown> = { ...data }
   if (data.sessionRpe != null) payload.sessionRpe = String(data.sessionRpe)
@@ -184,7 +168,15 @@ export async function getWorkoutWithDetails(id: number) {
     setsMap[el.id] = sets
   }
 
-  return { log, exerciseLogs, setsMap }
+  const prescriptions = log.workoutTemplateId
+    ? await db.select().from(templateExercise).where(eq(templateExercise.workoutTemplateId, log.workoutTemplateId))
+    : []
+  const prescriptionMap: Record<number, typeof templateExercise.$inferSelect> = {}
+  for (const { el } of exerciseLogs) {
+    const te = prescriptions.find((te) => te.exerciseId === el.exerciseId && te.orderIndex === el.orderIndex)
+    if (te) prescriptionMap[el.id] = te
+  }
+  return { log, exerciseLogs, setsMap, prescriptionMap }
 }
 
 // ── Exercise logs ────────────────────────────────────────────────────────────
@@ -236,7 +228,7 @@ export async function upsertSetLog(data: {
     weight: data.weight != null ? String(data.weight) : null,
     rpe: data.rpe != null ? String(data.rpe) : null,
     missed: data.missed ?? false,
-    missReason: data.missReason,
+    missReason: data.missed ? data.missReason ?? null : null,
   }
 
   // Check if set already exists
@@ -275,7 +267,7 @@ export async function upsertSetLog(data: {
         .from(workoutLog)
         .where(eq(workoutLog.id, el.workoutLogId))
       if (wl) {
-        const newEstimate = data.weight * (1 + data.reps / 30)
+        const newEstimate = calculateOneRepMax(data.weight, data.reps)
         const [currentPb] = await db
           .select()
           .from(personalBest)
@@ -297,7 +289,7 @@ export async function upsertSetLog(data: {
           })
         } else {
           const existingEstimate =
-            Number(currentPb.weight) * (1 + Number(currentPb.reps) / 30)
+            calculateOneRepMax(Number(currentPb.weight), currentPb.reps)
           if (newEstimate > existingEstimate) {
             await db.insert(personalBest).values({
               userId: wl.userId,

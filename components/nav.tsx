@@ -70,23 +70,19 @@ export function Nav({ userName }: NavProps) {
 
         {/* User menu */}
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="gap-2">
+          <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className="gap-2" />}>
               <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
                 <span className="text-primary-foreground text-xs font-bold uppercase">
                   {userName.charAt(0)}
                 </span>
               </div>
-              <span className="hidden sm:block text-sm">{userName}</span>
-            </Button>
-          </DropdownMenuTrigger>
+              <span className="hidden max-w-40 truncate sm:block text-sm">{userName}</span>
+            </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <Link href="/exercises">
+            <DropdownMenuItem render={<Link href="/exercises" />}>
                 <Trophy className="w-4 h-4 mr-2" />
                 Personal Bests
-              </Link>
-            </DropdownMenuItem>
+              </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
               <LogOut className="w-4 h-4 mr-2" />

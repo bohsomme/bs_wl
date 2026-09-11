@@ -30,7 +30,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ChevronLeft, Plus, Trash2, Dumbbell, GripVertical, Settings } from "lucide-react"
 
-const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+const DAYS = Array.from({ length: 7 }, (_, i) => `Day ${i + 1}`)
 
 interface TemplateExerciseRow {
   te: {
@@ -73,9 +73,9 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
   // Add exercise to template
   const [addExOpen, setAddExOpen] = useState(false)
   const [selectedExId, setSelectedExId] = useState<number | null>(null)
-  const [setsMin, setSetsMin] = useState(3)
+  const [setsMin, setSetsMin] = useState("3")
   const [setsMax, setSetsMax] = useState("")
-  const [repsMin, setRepsMin] = useState(5)
+  const [repsMin, setRepsMin] = useState("5")
   const [repsMax, setRepsMax] = useState("")
   const [weightType, setWeightType] = useState("fixed")
   const [weightValue, setWeightValue] = useState("")
@@ -102,7 +102,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
         programId: program.id,
         name: newTemplateName.trim(),
         weekNumber: newTemplateWeek,
-        dayOfWeek: newTemplateDay,
+        dayNumber: newTemplateDay,
       })
       setTemplates((prev) => [...prev, t])
       setNewTemplateName("")
@@ -121,16 +121,21 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
     })
   }
 
+  const validCount = (value: string) => value.trim() !== "" && Number.isInteger(Number(value)) && Number(value) >= 1
+  const validPrescription = validCount(setsMin) && validCount(repsMin)
+    && (setsMax === "" || (validCount(setsMax) && Number(setsMax) >= Number(setsMin)))
+    && (repsMax === "" || (validCount(repsMax) && Number(repsMax) >= Number(repsMin)))
+
   function handleAddExercise() {
-    if (!selectedExId || !selectedTemplate) return
+    if (!selectedExId || !selectedTemplate || !validPrescription) return
     startTransition(async () => {
       await addTemplateExercise({
         workoutTemplateId: selectedTemplate.id,
         exerciseId: selectedExId,
         orderIndex: templateExercises.length,
-        setsMin,
+        setsMin: Number(setsMin),
         setsMax: setsMax ? Number(setsMax) : undefined,
-        repsMin,
+        repsMin: Number(repsMin),
         repsMax: repsMax ? Number(repsMax) : undefined,
         weightType,
         weightValue: weightValue ? Number(weightValue) : undefined,
@@ -165,9 +170,9 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
 
   function resetExForm() {
     setSelectedExId(null)
-    setSetsMin(3)
+    setSetsMin("3")
     setSetsMax("")
-    setRepsMin(5)
+    setRepsMin("5")
     setRepsMax("")
     setWeightType("fixed")
     setWeightValue("")
@@ -189,9 +194,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button asChild variant="ghost" size="icon">
-          <Link href="/programs"><ChevronLeft className="w-5 h-5" /></Link>
-        </Button>
+        <Button variant="ghost" size="icon" nativeButton={false} render={<Link href="/programs" />}><ChevronLeft className="w-5 h-5" /></Button>
         <div>
           <h1 className="text-xl font-bold">{program.name}</h1>
           <p className="text-sm text-muted-foreground">{program.totalWeeks} weeks</p>
@@ -201,7 +204,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
       <div className="grid gap-6 lg:grid-cols-5">
         {/* Left: template list */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Workouts</h2>
             <Button size="sm" variant="outline" className="gap-1" onClick={() => setAddTemplateOpen(true)}>
               <Plus className="w-3.5 h-3.5" /> Add
@@ -218,7 +221,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
                 ) : (
                   <div className="space-y-1">
                     {weekTemplates
-                      .sort((a, b) => a.dayOfWeek - b.dayOfWeek)
+                      .sort((a, b) => a.dayNumber - b.dayNumber)
                       .map((t) => (
                         <div
                           key={t.id}
@@ -233,13 +236,13 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
                             <Dumbbell className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                             <div className="min-w-0">
                               <p className="text-sm font-medium truncate">{t.name}</p>
-                              <p className="text-xs text-muted-foreground">{DAYS[t.dayOfWeek]}</p>
+                              <p className="text-xs text-muted-foreground">{DAYS[t.dayNumber - 1]}</p>
                             </div>
                           </div>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                            className="h-9 w-9"
                             onClick={(e) => { e.stopPropagation(); handleDeleteTemplate(t.id) }}
                           >
                             <Trash2 className="w-3.5 h-3.5 text-destructive" />
@@ -261,7 +264,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
                 <div>
                   <h2 className="font-semibold">{selectedTemplate.name}</h2>
                   <p className="text-sm text-muted-foreground">
-                    Week {selectedTemplate.weekNumber} &middot; {DAYS[selectedTemplate.dayOfWeek]}
+                    Week {selectedTemplate.weekNumber} &middot; {DAYS[selectedTemplate.dayNumber - 1]}
                   </p>
                 </div>
                 <Button size="sm" className="gap-1.5" onClick={() => setAddExOpen(true)}>
@@ -297,7 +300,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 shrink-0"
+                            className="h-9 w-9 shrink-0"
                             onClick={() => handleRemoveExercise(row.te.id)}
                           >
                             <Trash2 className="w-3.5 h-3.5 text-destructive" />
@@ -359,7 +362,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
                   </SelectTrigger>
                   <SelectContent>
                     {DAYS.map((d, i) => (
-                      <SelectItem key={i} value={String(i)}>{d}</SelectItem>
+                      <SelectItem key={i} value={String(i + 1)}>{d}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -389,7 +392,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
                   onValueChange={(v) => setSelectedExId(Number(v))}
                 >
                   <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Select exercise..." />
+                    <SelectValue placeholder="Select exercise...">{exercises.find((ex) => ex.id === selectedExId)?.name}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {exercises.map((ex) => (
@@ -406,7 +409,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Sets (min)</Label>
-                <Input type="number" min={1} value={setsMin} onChange={(e) => setSetsMin(Number(e.target.value))} />
+                <Input type="number" min={1} value={setsMin} onChange={(e) => setSetsMin(e.target.value)} />
               </div>
               <div className="space-y-1.5">
                 <Label>Sets (max, optional)</Label>
@@ -414,7 +417,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
               </div>
               <div className="space-y-1.5">
                 <Label>Reps (min)</Label>
-                <Input type="number" min={1} value={repsMin} onChange={(e) => setRepsMin(Number(e.target.value))} />
+                <Input type="number" min={1} value={repsMin} onChange={(e) => setRepsMin(e.target.value)} />
               </div>
               <div className="space-y-1.5">
                 <Label>Reps (max, optional)</Label>
@@ -424,7 +427,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
 
             <div className="space-y-1.5">
               <Label>Loading type</Label>
-              <Select value={weightType} onValueChange={setWeightType}>
+              <Select value={weightType} onValueChange={(value) => { if (value !== null) setWeightType(value) }}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -462,7 +465,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddExOpen(false)}>Cancel</Button>
-            <Button onClick={handleAddExercise} disabled={pending || !selectedExId}>Add</Button>
+            <Button onClick={handleAddExercise} disabled={pending || !selectedExId || !validPrescription}>Add</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

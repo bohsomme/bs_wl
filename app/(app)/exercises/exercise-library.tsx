@@ -28,6 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Plus, Trash2, Trophy, Search } from "lucide-react"
+import { calculateOneRepMax } from "@/lib/strength"
 
 type PbRow = {
   pb: {
@@ -144,7 +145,11 @@ export function ExerciseLibrary({ initialExercises, initialPbs }: ExerciseLibrar
     })
   }
 
-  const pbMap = Object.fromEntries(pbs.map((p) => [p.exercise.id, p.pb]))
+  const pbMap = Object.fromEntries(
+    [...pbs]
+      .sort((a, b) => a.pb.createdAt.getTime() - b.pb.createdAt.getTime() || a.pb.id - b.pb.id)
+      .map((p) => [p.exercise.id, p.pb])
+  )
 
   return (
     <div className="space-y-4">
@@ -159,8 +164,8 @@ export function ExerciseLibrary({ initialExercises, initialPbs }: ExerciseLibrar
 
         {/* Exercise Library tab */}
         <TabsContent value="library" className="space-y-4 mt-4">
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative min-w-40 flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Search exercises..."
@@ -193,14 +198,21 @@ export function ExerciseLibrary({ initialExercises, initialPbs }: ExerciseLibrar
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {pbMap[ex.id] && (
-                          <Badge variant="secondary" className="text-xs">
-                            {pbMap[ex.id].weight} kg &times; {pbMap[ex.id].reps}
-                          </Badge>
+                          <div className="text-right">
+                            <Badge variant="secondary" className="text-xs">
+                              {pbMap[ex.id].weight} kg &times; {pbMap[ex.id].reps}
+                            </Badge>
+                            {pbMap[ex.id].reps > 1 && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Predicted 1RM: {Number(calculateOneRepMax(Number(pbMap[ex.id].weight), pbMap[ex.id].reps).toFixed(1))} kg
+                              </p>
+                            )}
+                          </div>
                         )}
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-xs h-7 opacity-0 group-hover:opacity-100"
+                          className="text-xs h-9"
                           onClick={() => openPbForm(ex.id)}
                         >
                           <Trophy className="w-3.5 h-3.5 mr-1" />
@@ -209,7 +221,7 @@ export function ExerciseLibrary({ initialExercises, initialPbs }: ExerciseLibrar
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7 opacity-0 group-hover:opacity-100"
+                          className="h-9 w-9 "
                           onClick={() => setDeleteId(ex.id)}
                         >
                           <Trash2 className="w-3.5 h-3.5 text-destructive" />
@@ -249,6 +261,11 @@ export function ExerciseLibrary({ initialExercises, initialPbs }: ExerciseLibrar
                     <div className="text-right">
                       <p className="font-bold text-lg text-primary">{pb.weight} kg</p>
                       <p className="text-xs text-muted-foreground">&times; {pb.reps} rep{pb.reps !== 1 ? "s" : ""}</p>
+                      {pb.reps > 1 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Predicted 1RM: {Number(calculateOneRepMax(Number(pb.weight), pb.reps).toFixed(1))} kg
+                        </p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -304,6 +321,11 @@ export function ExerciseLibrary({ initialExercises, initialPbs }: ExerciseLibrar
               <Label>Reps</Label>
               <Input type="number" min={1} value={pbReps} onChange={(e) => setPbReps(e.target.value)} />
             </div>
+            {Number(pbWeight) > 0 && Number(pbReps) > 1 && (
+              <p className="text-sm text-muted-foreground">
+                Predicted 1RM: {Number(calculateOneRepMax(Number(pbWeight), Number(pbReps)).toFixed(1))} kg. Used for percentage-based default weights.
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPbOpen(false)}>Cancel</Button>

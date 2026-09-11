@@ -82,6 +82,8 @@ export const program = pgTable("program", {
   name: text("name").notNull(),
   description: text("description"),
   isActive: boolean("isActive").notNull().default(false),
+  startDate: text("startDate"),
+  assignedAt: timestamp("assignedAt", { withTimezone: true }),
   totalWeeks: integer("totalWeeks").notNull().default(1),
   createdAt: timestamp("createdAt", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updatedAt", { withTimezone: true }).notNull().defaultNow(),
@@ -92,7 +94,7 @@ export const workoutTemplate = pgTable("workout_template", {
   programId: integer("programId").notNull(),
   name: text("name").notNull(),
   weekNumber: integer("weekNumber").notNull().default(1),
-  dayOfWeek: integer("dayOfWeek").notNull(), // 0=Sun, 1=Mon...6=Sat
+  dayNumber: integer("dayOfWeek").notNull(), // Program day 1?7; legacy column name
   orderInDay: integer("orderInDay").notNull().default(0),
   createdAt: timestamp("createdAt", { withTimezone: true }).notNull().defaultNow(),
 })

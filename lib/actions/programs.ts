@@ -98,7 +98,7 @@ export async function duplicateProgram(id: number) {
         programId: newProgram.id,
         name: t.name,
         weekNumber: t.weekNumber,
-        dayOfWeek: t.dayOfWeek,
+        dayNumber: t.dayNumber,
         orderInDay: t.orderInDay,
       })
       .returning()
@@ -129,18 +129,15 @@ export async function duplicateProgram(id: number) {
   return newProgram
 }
 
-export async function setActiveProgram(id: number) {
+export async function setActiveProgram(id: number, startDate: string) {
   const userId = await getUserId()
-  // deactivate all first
-  await db
-    .update(program)
-    .set({ isActive: false, updatedAt: new Date() })
-    .where(eq(program.userId, userId))
-  // activate chosen
-  await db
-    .update(program)
-    .set({ isActive: true, updatedAt: new Date() })
-    .where(and(eq(program.id, id), eq(program.userId, userId)))
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !Number.isFinite(Date.parse(startDate)) || new Date(startDate).toISOString().slice(0, 10) !== startDate) throw new Error("Choose a valid start date")
+  await db.transaction(async (tx) => {
+    const [chosen] = await tx.select().from(program).where(and(eq(program.id, id), eq(program.userId, userId)))
+    if (!chosen) throw new Error("Program not found")
+    await tx.update(program).set({ isActive: false, updatedAt: new Date() }).where(eq(program.userId, userId))
+    await tx.update(program).set({ isActive: true, startDate, assignedAt: new Date(), updatedAt: new Date() }).where(and(eq(program.id, id), eq(program.userId, userId)))
+  })
   revalidatePath("/programs")
   revalidatePath("/")
 }
@@ -152,16 +149,17 @@ export async function getWorkoutTemplates(programId: number) {
     .select()
     .from(workoutTemplate)
     .where(eq(workoutTemplate.programId, programId))
-    .orderBy(asc(workoutTemplate.weekNumber), asc(workoutTemplate.dayOfWeek))
+    .orderBy(asc(workoutTemplate.weekNumber), asc(workoutTemplate.dayNumber))
 }
 
 export async function createWorkoutTemplate(data: {
   programId: number
   name: string
   weekNumber: number
-  dayOfWeek: number
+  dayNumber: number
 }) {
   await getUserId()
+  if (!Number.isInteger(data.dayNumber) || data.dayNumber < 1 || data.dayNumber > 7) throw new Error("Choose Day 1-7")
   const [t] = await db.insert(workoutTemplate).values(data).returning()
   revalidatePath(`/programs/${data.programId}`)
   return t
@@ -169,9 +167,10 @@ export async function createWorkoutTemplate(data: {
 
 export async function updateWorkoutTemplate(
   id: number,
-  data: Partial<{ name: string; weekNumber: number; dayOfWeek: number }>
+  data: Partial<{ name: string; weekNumber: number; dayNumber: number }>
 ) {
   await getUserId()
+  if (data.dayNumber !== undefined && (!Number.isInteger(data.dayNumber) || data.dayNumber < 1 || data.dayNumber > 7)) throw new Error("Choose Day 1-7")
   const [t] = await db
     .update(workoutTemplate)
     .set(data)

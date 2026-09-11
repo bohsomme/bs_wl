@@ -68,24 +68,48 @@ export function ProgramList({ initialPrograms }: ProgramListProps) {
     })
   }
 
+  const [assignId, setAssignId] = useState<number | null>(null)
+  const [startDate, setStartDate] = useState("")
+  const [assignError, setAssignError] = useState("")
+
   function handleSetActive(id: number) {
     startTransition(async () => {
-      await setActiveProgram(id)
+      try {
+      await setActiveProgram(id, startDate)
       setPrograms((prev) =>
-        prev.map((p) => ({ ...p, isActive: p.id === id }))
+        prev.map((p) => ({ ...p, isActive: p.id === id, startDate: p.id === id ? startDate : p.startDate }))
       )
+      setAssignId(null)
+      router.refresh()
+      } catch (error) {
+        setAssignError(error instanceof Error ? error.message : "Could not assign program")
+      }
     })
   }
 
   return (
     <div className="space-y-4">
+      <Dialog open={assignId !== null} onOpenChange={(open) => { if (!open) setAssignId(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Program</DialogTitle>
+            <DialogDescription>Day 1 starts on the date you choose. All other days follow from that date.</DialogDescription>
+          </DialogHeader>
+          <Label htmlFor="program-start">Start date</Label>
+          <Input id="program-start" type="date" required value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          {startDate && <p className="text-sm text-muted-foreground">Day 1: {new Date(startDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>}
+          {assignError && <p role="alert" className="text-sm text-destructive">{assignError}</p>}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignId(null)}>Cancel</Button>
+            <Button disabled={pending || !startDate} onClick={() => assignId !== null && handleSetActive(assignId)}>Assign Program</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <div className="flex justify-end">
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
+          <DialogTrigger render={<Button className="gap-2" />}>
               <Plus className="w-4 h-4" /> New Program
-            </Button>
-          </DialogTrigger>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create Program</DialogTitle>
@@ -160,15 +184,13 @@ export function ProgramList({ initialPrograms }: ProgramListProps) {
                       </Badge>
                     )}
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                      <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-9 w-9" />}>
                           <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
+                        </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {!p.isActive && (
-                          <DropdownMenuItem onClick={() => handleSetActive(p.id)}>
-                            <Zap className="w-4 h-4 mr-2" /> Set as active
+                        {(
+                          <DropdownMenuItem onClick={() => { setAssignId(p.id); setStartDate(p.startDate ?? ""); setAssignError("") }}>
+                            <Zap className="w-4 h-4 mr-2" /> {p.isActive ? "Reassign program" : "Assign program"}
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuItem onClick={() => handleDuplicate(p.id)}>
@@ -189,11 +211,13 @@ export function ProgramList({ initialPrograms }: ProgramListProps) {
               <CardContent>
                 <p className="text-xs text-muted-foreground mb-3">
                   {p.totalWeeks} week{p.totalWeeks !== 1 ? "s" : ""}
+                  {p.startDate && <> &middot; Starts {new Date(p.startDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</>}
                 </p>
-                <Button asChild variant="outline" size="sm" className="w-full gap-1.5">
-                  <Link href={`/programs/${p.id}`}>
-                    View &amp; Edit <ChevronRight className="w-3.5 h-3.5" />
-                  </Link>
+                <Button variant="outline" size="sm" className="w-full gap-1.5" nativeButton={false} render={<Link href={`/programs/${p.id}`} />}>
+                  <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                    <span>View &amp; Edit</span>
+                    <ChevronRight className="size-3.5 shrink-0" />
+                  </span>
                 </Button>
               </CardContent>
             </Card>

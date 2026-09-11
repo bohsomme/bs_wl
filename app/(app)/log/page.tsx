@@ -49,7 +49,7 @@ export default async function LogPage() {
                   <div className="flex items-center gap-2 shrink-0">
                     {log.readiness && (
                       <Badge variant="outline" className="text-xs">
-                        Readiness {log.readiness}/10
+                        Readiness {log.readiness}/{log.readiness > 5 ? "10 (legacy)" : "5"}
                       </Badge>
                     )}
                     {log.sessionRpe && (

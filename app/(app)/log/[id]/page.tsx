@@ -25,9 +25,7 @@ export default async function LogDetailPage({ params }: Props) {
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button asChild variant="ghost" size="icon">
-          <Link href="/log"><ChevronLeft className="w-5 h-5" /></Link>
-        </Button>
+        <Button variant="ghost" size="icon" nativeButton={false} render={<Link href="/log" />}><ChevronLeft className="w-5 h-5" /></Button>
         <div>
           <h1 className="text-xl font-bold">{log.name}</h1>
           <p className="text-sm text-muted-foreground">
@@ -51,10 +49,10 @@ export default async function LogDetailPage({ params }: Props) {
         <CardContent className="space-y-3">
           <div className="flex flex-wrap gap-2">
             {log.readiness && (
-              <Badge variant="outline">Readiness {log.readiness}/10</Badge>
+              <Badge variant="outline">Readiness {log.readiness}/{log.readiness > 5 ? "10 (legacy)" : "5"}</Badge>
             )}
             {log.barFeel && (
-              <Badge variant="outline">Bar feel {log.barFeel}/10</Badge>
+              <Badge variant="outline">Bar feel {log.barFeel}/{log.barFeel > 5 ? "10 (legacy)" : "5"}</Badge>
             )}
             {log.sessionRpe && (
               <Badge variant="secondary">Session RPE {log.sessionRpe}</Badge>

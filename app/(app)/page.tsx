@@ -20,7 +20,7 @@ function formatDate(date: Date) {
   const diff = (d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
   if (diff === 0) return "Today"
   if (diff === 1) return "Tomorrow"
-  if (diff < 7) return DAYS[d.getDay()]
+  if (diff > 1 && diff < 7) return DAYS[d.getDay()]
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
 }
 
@@ -57,9 +57,7 @@ export default async function HomePage() {
                 <p className="text-muted-foreground text-xs">{active.name}</p>
               </div>
             </div>
-            <Button asChild size="sm">
-              <Link href={`/workout/${active.id}`}>Resume</Link>
-            </Button>
+            <Button size="sm" nativeButton={false} render={<Link href={`/workout/${active.id}`} />}>Resume</Button>
           </CardContent>
         </Card>
       )}
@@ -86,7 +84,7 @@ export default async function HomePage() {
                   <p className="font-semibold">{next.template.name}</p>
                   <p className="text-sm text-muted-foreground">
                     {next.program.name} &middot; Week {next.weekNumber} &middot;{" "}
-                    {DAYS[next.template.dayOfWeek]}
+                    Day {next.template.dayNumber} ({DAYS[next.nextDate.getDay()]})
                   </p>
                 </div>
                 <Separator />
@@ -100,14 +98,12 @@ export default async function HomePage() {
               <div className="text-center py-6 space-y-3">
                 <Dumbbell className="w-10 h-10 text-muted-foreground/40 mx-auto" />
                 <div>
-                  <p className="font-medium text-sm">No active program</p>
+                  <p className="font-medium text-sm">No scheduled workout</p>
                   <p className="text-muted-foreground text-xs mt-1">
-                    Set up a program to see your next workout here
+                    Assign a program with a start date to see your next workout here
                   </p>
                 </div>
-                <Button asChild variant="outline" size="sm">
-                  <Link href="/programs">Go to Programs</Link>
-                </Button>
+                <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/programs" />}>Go to Programs</Button>
               </div>
             )}
           </CardContent>
@@ -119,21 +115,15 @@ export default async function HomePage() {
             <CardTitle className="text-base">Quick Access</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <Button asChild variant="outline" className="w-full justify-start gap-2">
-              <Link href="/programs">
+            <Button variant="outline" className="w-full justify-start gap-2" nativeButton={false} render={<Link href="/programs" />}>
                 <BookOpen className="w-4 h-4" /> Programs
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="w-full justify-start gap-2">
-              <Link href="/exercises">
+              </Button>
+            <Button variant="outline" className="w-full justify-start gap-2" nativeButton={false} render={<Link href="/exercises" />}>
                 <Trophy className="w-4 h-4" /> Exercises &amp; PBs
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="w-full justify-start gap-2">
-              <Link href="/log">
+              </Button>
+            <Button variant="outline" className="w-full justify-start gap-2" nativeButton={false} render={<Link href="/log" />}>
                 <History className="w-4 h-4" /> Workout Log
-              </Link>
-            </Button>
+              </Button>
           </CardContent>
         </Card>
       </div>
@@ -143,9 +133,7 @@ export default async function HomePage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">Recent Workouts</h2>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/log">View all</Link>
-            </Button>
+            <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/log" />}>View all</Button>
           </div>
           <div className="space-y-2">
             {recentLogs.slice(0, 3).map((log) => (

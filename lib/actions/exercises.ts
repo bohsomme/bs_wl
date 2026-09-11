@@ -5,6 +5,7 @@ import { exercise, personalBest } from "@/lib/db/schema"
 import { asc, desc, eq, and } from "drizzle-orm"
 import { getUserId } from "./auth"
 import { revalidatePath } from "next/cache"
+import { calculateOneRepMax } from "@/lib/strength"
 
 export async function getExercises() {
   return db.select().from(exercise).orderBy(asc(exercise.name))
@@ -55,10 +56,10 @@ export async function setPersonalBest(data: {
     .orderBy(desc(personalBest.createdAt))
     .limit(1)
 
-  const newEstimate = data.weight * (1 + data.reps / 30)
+  const newEstimate = calculateOneRepMax(data.weight, data.reps)
   if (existing.length > 0) {
     const existingEstimate =
-      Number(existing[0].weight) * (1 + Number(existing[0].reps) / 30)
+      calculateOneRepMax(Number(existing[0].weight), existing[0].reps)
     if (newEstimate <= existingEstimate) return null
   }
 
