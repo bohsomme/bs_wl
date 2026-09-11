@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { BrandLogo } from "@/components/brand-logo"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -32,9 +33,7 @@ export function LandingClient({ isAuthenticated = false }: { isAuthenticated?: b
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-sm">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
-          <span className="text-xl font-bold tracking-tight text-foreground">
-            BS<span className="text-primary">-Weightlifting</span>
-          </span>
+          <BrandLogo />
 
           <div className="flex items-center gap-4">
             {isAuthenticated ? (

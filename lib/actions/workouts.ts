@@ -101,6 +101,7 @@ export async function updateWorkoutLog(
     preNotes: string
     sessionRpe: number
     postNotes: string
+    functionalNotes: string
     status: string
     completedAt: Date
   }>
@@ -186,6 +187,22 @@ export async function getWorkoutWithDetails(id: number) {
     setsMap[el.id] = sets
   }
 
+  const prescriptions = log.workoutTemplateId
+    ? await db
+        .select()
+        .from(templateExercise)
+        .where(eq(templateExercise.workoutTemplateId, log.workoutTemplateId))
+    : []
+
+  const prescriptionMap: Record<number, typeof templateExercise.$inferSelect> = {}
+  for (const { el } of exerciseLogs) {
+    // Match the position as well as the exercise: a template can repeat a lift.
+    const prescription = prescriptions.find(
+      (te) => te.exerciseId === el.exerciseId && te.orderIndex === el.orderIndex
+    )
+    if (prescription) prescriptionMap[el.id] = prescription
+  }
+
   // Functional Fitness blocks come from the source template (display-only)
   const functionalBlocks = log.workoutTemplateId
     ? await db
@@ -195,7 +212,7 @@ export async function getWorkoutWithDetails(id: number) {
         .orderBy(asc(templateFunctionalBlock.orderIndex))
     : []
 
-  return { log, exerciseLogs, setsMap, functionalBlocks }
+  return { log, exerciseLogs, prescriptionMap, setsMap, functionalBlocks }
 }
 
 // ── Exercise logs ────────────────────────────────────────────────────────────

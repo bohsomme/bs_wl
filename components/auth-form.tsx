@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { BrandLogo } from "@/components/brand-logo"
 import { useRouter } from "next/navigation"
 import { authClient } from "@/lib/auth-client"
 import { Button } from "@/components/ui/button"
@@ -47,10 +48,7 @@ export function AuthForm({ mode }: AuthFormProps) {
       <Card className="w-full max-w-sm">
         <CardHeader className="space-y-1">
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground text-sm font-bold">BS</span>
-            </div>
-            <span className="font-semibold text-foreground">Weightlifting</span>
+            <BrandLogo />
           </div>
           <CardTitle className="text-2xl">
             {mode === "sign-in" ? "Welcome back" : "Create account"}

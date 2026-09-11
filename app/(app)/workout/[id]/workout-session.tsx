@@ -9,7 +9,7 @@ import {
   upsertSetLog,
 } from "@/lib/actions/workouts"
 import { addExercise } from "@/lib/actions/exercises"
-import type { Exercise, WorkoutLog, ExerciseLog, SetLog, TemplateFunctionalBlock } from "@/lib/db/schema"
+import type { Exercise, WorkoutLog, ExerciseLog, SetLog, TemplateExercise, TemplateFunctionalBlock } from "@/lib/db/schema"
 import { functionalHeading } from "@/lib/functional-fitness"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -64,6 +64,8 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
   const [exerciseLogs, setExerciseLogs] = useState(initialDetails.exerciseLogs)
   const [setsMap, setSetsMap] = useState(initialDetails.setsMap)
   const functionalBlocks = initialDetails.functionalBlocks ?? []
+  const [functionalNotes, setFunctionalNotes] = useState(log.functionalNotes ?? "")
+  const [functionalNotesStatus, setFunctionalNotesStatus] = useState("")
 
   const [phase, setPhase] = useState<Phase>("readiness")
   const [currentExIdx, setCurrentExIdx] = useState(0)
@@ -244,6 +246,7 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
         preNotes,
         sessionRpe: sessionRpe ? Number(sessionRpe) : undefined,
         postNotes: postNotes || undefined,
+        functionalNotes,
         status: "completed",
         completedAt: new Date(),
       })
@@ -253,6 +256,35 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
 
 
   // ── Readiness Phase ──────────────────────────────────────────────────────
+
+  function saveFunctionalNotes() {
+    startTransition(async () => {
+      try {
+        await updateWorkoutLog(log.id, { functionalNotes })
+        setFunctionalNotesStatus("Saved")
+      } catch {
+        setFunctionalNotesStatus("Could not save. Please try again.")
+      }
+    })
+  }
+
+  const functionalNotesField = (
+    <div className="space-y-2">
+      <Label htmlFor="functional-notes">Functional Fitness notes</Label>
+      <Textarea
+        id="functional-notes"
+        placeholder="RPE, Score and Notes"
+        rows={3}
+        value={functionalNotes}
+        onChange={(e) => { setFunctionalNotes(e.target.value); setFunctionalNotesStatus("Unsaved changes") }}
+        onBlur={saveFunctionalNotes}
+      />
+      <div className="flex items-center justify-between gap-2">
+        <p role="status" className="text-xs text-muted-foreground">{functionalNotesStatus}</p>
+        <Button size="sm" variant="outline" disabled={pending} onClick={saveFunctionalNotes}>Save notes</Button>
+      </div>
+    </div>
+  )
 
   const checkInPanel = (
     <section aria-label="Workout check-in" className="rounded-xl border bg-background p-3 shadow-sm space-y-2">
@@ -359,6 +391,8 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
               />
             </div>
 
+            {functionalBlocks.length > 0 && functionalNotesField}
+
             <Button onClick={finishWorkout} disabled={pending} className="w-full gap-2">
               <CheckCircle2 className="w-4 h-4" />
               {pending ? "Saving..." : "Complete Workout"}
@@ -398,6 +432,7 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
                   )}
                 </div>
               ))}
+              {functionalNotesField}
             </CardContent>
           </Card>
         )}
@@ -482,6 +517,7 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
                 )}
               </div>
             ))}
+            {functionalNotesField}
           </CardContent>
         </Card>
       )}

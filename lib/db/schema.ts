@@ -142,6 +142,7 @@ export const workoutLog = pgTable("workout_log", {
   preNotes: text("preNotes"),
   sessionRpe: numeric("sessionRpe", { precision: 4, scale: 1 }),
   postNotes: text("postNotes"),
+  functionalNotes: text("functionalNotes"),
   status: text("status").notNull().default("in_progress"), // 'in_progress' | 'completed'
 })
 

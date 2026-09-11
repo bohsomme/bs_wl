@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { BrandLogo } from "@/components/brand-logo"
 import { usePathname, useRouter } from "next/navigation"
 import { authClient } from "@/lib/auth-client"
 import { Button } from "@/components/ui/button"
@@ -37,17 +38,14 @@ export function Nav({ userName }: NavProps) {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-14 items-center gap-6 px-6 max-w-7xl mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-6 py-3 sm:h-14 sm:flex-nowrap sm:py-0 max-w-7xl mx-auto">
         {/* Logo */}
         <Link href="/dashboard" className="flex items-center gap-2 shrink-0">
-          <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground text-xs font-bold">BS</span>
-          </div>
-          <span className="font-semibold text-sm hidden sm:block">Weightlifting</span>
+          <BrandLogo />
         </Link>
 
         {/* Nav links */}
-        <nav className="flex items-center gap-1 flex-1">
+        <nav className="order-last flex w-full items-center justify-between gap-1 sm:order-none sm:w-auto sm:flex-1 sm:justify-start">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || (href !== "/" && pathname.startsWith(href))
             return (

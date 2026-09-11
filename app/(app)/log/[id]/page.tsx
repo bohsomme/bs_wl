@@ -66,6 +66,12 @@ export default async function LogDetailPage({ params }: Props) {
               <p className="text-sm">{log.preNotes}</p>
             </div>
           )}
+          {log.functionalNotes && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">Functional Fitness notes</p>
+              <p className="text-sm whitespace-pre-wrap">{log.functionalNotes}</p>
+            </div>
+          )}
           {log.postNotes && (
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-1">Post-workout notes</p>
