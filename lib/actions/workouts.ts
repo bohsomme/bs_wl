@@ -8,6 +8,7 @@ import {
   setLog,
   workoutTemplate,
   templateExercise,
+  templateFunctionalBlock,
   exercise,
   program,
   personalBest,
@@ -110,8 +111,25 @@ export async function updateWorkoutLog(
     }
   }
   const userId = await getUserId()
-  const payload: Record<string, unknown> = { ...data }
+
+  // Drop undefined fields so we don't send empty updates to Drizzle.
+  const payload: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(data)) {
+    if (value !== undefined) payload[key] = value
+  }
   if (data.sessionRpe != null) payload.sessionRpe = String(data.sessionRpe)
+
+  // Drizzle throws "No values to set" on an empty update. If there's nothing
+  // to change (e.g. the athlete skipped readiness), just return the current
+  // row scoped to this user.
+  if (Object.keys(payload).length === 0) {
+    const [existing] = await db
+      .select()
+      .from(workoutLog)
+      .where(and(eq(workoutLog.id, id), eq(workoutLog.userId, userId)))
+    return existing
+  }
+
   const [log] = await db
     .update(workoutLog)
     .set(payload)
@@ -168,15 +186,16 @@ export async function getWorkoutWithDetails(id: number) {
     setsMap[el.id] = sets
   }
 
-  const prescriptions = log.workoutTemplateId
-    ? await db.select().from(templateExercise).where(eq(templateExercise.workoutTemplateId, log.workoutTemplateId))
+  // Functional Fitness blocks come from the source template (display-only)
+  const functionalBlocks = log.workoutTemplateId
+    ? await db
+        .select()
+        .from(templateFunctionalBlock)
+        .where(eq(templateFunctionalBlock.workoutTemplateId, log.workoutTemplateId))
+        .orderBy(asc(templateFunctionalBlock.orderIndex))
     : []
-  const prescriptionMap: Record<number, typeof templateExercise.$inferSelect> = {}
-  for (const { el } of exerciseLogs) {
-    const te = prescriptions.find((te) => te.exerciseId === el.exerciseId && te.orderIndex === el.orderIndex)
-    if (te) prescriptionMap[el.id] = te
-  }
-  return { log, exerciseLogs, setsMap, prescriptionMap }
+
+  return { log, exerciseLogs, setsMap, functionalBlocks }
 }
 
 // ── Exercise logs ────────────────────────────────────────────────────────────

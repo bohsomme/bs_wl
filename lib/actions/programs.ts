@@ -1,7 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { program, workoutTemplate, templateExercise } from "@/lib/db/schema"
+import { program, workoutTemplate, templateExercise, templateFunctionalBlock } from "@/lib/db/schema"
 import { asc, eq, and } from "drizzle-orm"
 import { getUserId } from "./auth"
 import { revalidatePath } from "next/cache"
@@ -61,6 +61,7 @@ export async function deleteProgram(id: number) {
     .where(eq(workoutTemplate.programId, id))
   for (const t of templates) {
     await db.delete(templateExercise).where(eq(templateExercise.workoutTemplateId, t.id))
+    await db.delete(templateFunctionalBlock).where(eq(templateFunctionalBlock.workoutTemplateId, t.id))
   }
   await db.delete(workoutTemplate).where(eq(workoutTemplate.programId, id))
   await db.delete(program).where(and(eq(program.id, id), eq(program.userId, userId)))
@@ -123,6 +124,23 @@ export async function duplicateProgram(id: number) {
         notes: ex.notes,
       })
     }
+
+    const blocks = await db
+      .select()
+      .from(templateFunctionalBlock)
+      .where(eq(templateFunctionalBlock.workoutTemplateId, t.id))
+
+    for (const b of blocks) {
+      await db.insert(templateFunctionalBlock).values({
+        workoutTemplateId: newTemplate.id,
+        orderIndex: b.orderIndex,
+        kind: b.kind,
+        title: b.title,
+        source: b.source,
+        details: b.details,
+        durationMin: b.durationMin,
+      })
+    }
   }
 
   revalidatePath("/programs")
@@ -182,8 +200,118 @@ export async function updateWorkoutTemplate(
 export async function deleteWorkoutTemplate(id: number, programId: number) {
   await getUserId()
   await db.delete(templateExercise).where(eq(templateExercise.workoutTemplateId, id))
+  await db.delete(templateFunctionalBlock).where(eq(templateFunctionalBlock.workoutTemplateId, id))
   await db.delete(workoutTemplate).where(eq(workoutTemplate.id, id))
   revalidatePath(`/programs/${programId}`)
+}
+
+// Duplicate a whole training day (template) to another week/day, copying its
+// exercises and functional-fitness blocks.
+export async function duplicateWorkoutTemplate(data: {
+  templateId: number
+  targetWeek: number
+  targetDay: number
+  programId: number
+}) {
+  await getUserId()
+
+  const [source] = await db
+    .select()
+    .from(workoutTemplate)
+    .where(eq(workoutTemplate.id, data.templateId))
+  if (!source) throw new Error("Workout not found")
+
+  const [newTemplate] = await db
+    .insert(workoutTemplate)
+    .values({
+      programId: source.programId,
+      name: source.name,
+      weekNumber: data.targetWeek,
+      dayOfWeek: data.targetDay,
+      orderInDay: source.orderInDay,
+    })
+    .returning()
+
+  const exercises = await db
+    .select()
+    .from(templateExercise)
+    .where(eq(templateExercise.workoutTemplateId, data.templateId))
+
+  for (const ex of exercises) {
+    await db.insert(templateExercise).values({
+      workoutTemplateId: newTemplate.id,
+      exerciseId: ex.exerciseId,
+      orderIndex: ex.orderIndex,
+      setsMin: ex.setsMin,
+      setsMax: ex.setsMax,
+      repsMin: ex.repsMin,
+      repsMax: ex.repsMax,
+      weightType: ex.weightType,
+      weightValue: ex.weightValue,
+      rpeTarget: ex.rpeTarget,
+      notes: ex.notes,
+    })
+  }
+
+  const blocks = await db
+    .select()
+    .from(templateFunctionalBlock)
+    .where(eq(templateFunctionalBlock.workoutTemplateId, data.templateId))
+
+  for (const b of blocks) {
+    await db.insert(templateFunctionalBlock).values({
+      workoutTemplateId: newTemplate.id,
+      orderIndex: b.orderIndex,
+      kind: b.kind,
+      title: b.title,
+      source: b.source,
+      details: b.details,
+      durationMin: b.durationMin,
+    })
+  }
+
+  revalidatePath(`/programs/${data.programId}`)
+  return newTemplate
+}
+
+// ── Functional Fitness blocks ────────────────────────────────────────────────
+
+export async function getFunctionalBlocks(workoutTemplateId: number) {
+  return db
+    .select()
+    .from(templateFunctionalBlock)
+    .where(eq(templateFunctionalBlock.workoutTemplateId, workoutTemplateId))
+    .orderBy(asc(templateFunctionalBlock.orderIndex))
+}
+
+export async function addFunctionalBlock(data: {
+  workoutTemplateId: number
+  kind: string
+  title?: string
+  source?: string
+  details?: string
+  durationMin?: number
+  orderIndex?: number
+}) {
+  await getUserId()
+  const [block] = await db
+    .insert(templateFunctionalBlock)
+    .values({
+      workoutTemplateId: data.workoutTemplateId,
+      kind: data.kind,
+      title: data.title || null,
+      source: data.source || null,
+      details: data.details || null,
+      durationMin: data.durationMin ?? null,
+      orderIndex: data.orderIndex ?? 0,
+    })
+    .returning()
+  return block
+}
+
+export async function deleteFunctionalBlock(id: number) {
+  await getUserId()
+  await db.delete(templateFunctionalBlock).where(eq(templateFunctionalBlock.id, id))
 }
 
 // ── Template Exercises ──────────────────────────────────────────────────────

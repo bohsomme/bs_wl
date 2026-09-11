@@ -1,7 +1,11 @@
 import { Analytics } from "@vercel/analytics/next"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
+import Script from "next/script"
 import "./globals.css"
+
+const GA_MEASUREMENT_ID = "G-VF88LC5ERC"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -9,6 +13,10 @@ export const metadata: Metadata = {
   title: "BS Weightlifting",
   description: "Track your weightlifting programs, workouts, and personal bests.",
   generator: "v0.app",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/apple-icon.png",
+  },
 }
 
 export const viewport: Viewport = {
@@ -24,7 +32,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className="bg-background">
       <body className={`${inter.className} antialiased`}>
         {children}
-        {process.env.NODE_ENV === "production" && <Analytics />}
+        {process.env.NODE_ENV === "production" && (
+          <>
+            <Analytics />
+            <SpeedInsights />
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+              strategy="afterInteractive"
+            />
+            <Script id="google-analytics" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${GA_MEASUREMENT_ID}');
+              `}
+            </Script>
+          </>
+        )}
       </body>
     </html>
   )

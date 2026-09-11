@@ -57,7 +57,9 @@ export default async function HomePage() {
                 <p className="text-muted-foreground text-xs">{active.name}</p>
               </div>
             </div>
-            <Button size="sm" nativeButton={false} render={<Link href={`/workout/${active.id}`} />}>Resume</Button>
+            <Button render={<Link href={`/workout/${active.id}`} />} size="sm">
+              Resume
+            </Button>
           </CardContent>
         </Card>
       )}
@@ -103,7 +105,9 @@ export default async function HomePage() {
                     Assign a program with a start date to see your next workout here
                   </p>
                 </div>
-                <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/programs" />}>Go to Programs</Button>
+                <Button render={<Link href="/programs" />} variant="outline" size="sm">
+                  Go to Programs
+                </Button>
               </div>
             )}
           </CardContent>
@@ -115,15 +119,27 @@ export default async function HomePage() {
             <CardTitle className="text-base">Quick Access</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <Button variant="outline" className="w-full justify-start gap-2" nativeButton={false} render={<Link href="/programs" />}>
-                <BookOpen className="w-4 h-4" /> Programs
-              </Button>
-            <Button variant="outline" className="w-full justify-start gap-2" nativeButton={false} render={<Link href="/exercises" />}>
-                <Trophy className="w-4 h-4" /> Exercises &amp; PBs
-              </Button>
-            <Button variant="outline" className="w-full justify-start gap-2" nativeButton={false} render={<Link href="/log" />}>
-                <History className="w-4 h-4" /> Workout Log
-              </Button>
+            <Button
+              render={<Link href="/programs" />}
+              variant="outline"
+              className="h-11 w-full justify-start gap-3 px-4"
+            >
+              <BookOpen className="w-4 h-4" /> Programs
+            </Button>
+            <Button
+              render={<Link href="/exercises" />}
+              variant="outline"
+              className="h-11 w-full justify-start gap-3 px-4"
+            >
+              <Trophy className="w-4 h-4" /> Exercises &amp; PBs
+            </Button>
+            <Button
+              render={<Link href="/log" />}
+              variant="outline"
+              className="h-11 w-full justify-start gap-3 px-4"
+            >
+              <History className="w-4 h-4" /> Workout Log
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -133,7 +149,9 @@ export default async function HomePage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">Recent Workouts</h2>
-            <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/log" />}>View all</Button>
+            <Button render={<Link href="/log" />} variant="ghost" size="sm">
+              View all
+            </Button>
           </div>
           <div className="space-y-2">
             {recentLogs.slice(0, 3).map((log) => (

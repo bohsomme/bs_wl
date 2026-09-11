@@ -108,8 +108,8 @@ export function ProgramList({ initialPrograms }: ProgramListProps) {
       <div className="flex justify-end">
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger render={<Button className="gap-2" />}>
-              <Plus className="w-4 h-4" /> New Program
-            </DialogTrigger>
+            <Plus className="w-4 h-4" /> New Program
+          </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create Program</DialogTitle>
@@ -184,9 +184,9 @@ export function ProgramList({ initialPrograms }: ProgramListProps) {
                       </Badge>
                     )}
                     <DropdownMenu>
-                      <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-9 w-9" />}>
-                          <MoreHorizontal className="w-4 h-4" />
-                        </DropdownMenuTrigger>
+                      <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-7 w-7" />}>
+                        <MoreHorizontal className="w-4 h-4" />
+                      </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         {(
                           <DropdownMenuItem onClick={() => { setAssignId(p.id); setStartDate(p.startDate ?? ""); setAssignError("") }}>
@@ -213,11 +213,8 @@ export function ProgramList({ initialPrograms }: ProgramListProps) {
                   {p.totalWeeks} week{p.totalWeeks !== 1 ? "s" : ""}
                   {p.startDate && <> &middot; Starts {new Date(p.startDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</>}
                 </p>
-                <Button variant="outline" size="sm" className="w-full gap-1.5" nativeButton={false} render={<Link href={`/programs/${p.id}`} />}>
-                  <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                    <span>View &amp; Edit</span>
-                    <ChevronRight className="size-3.5 shrink-0" />
-                  </span>
+                <Button render={<Link href={`/programs/${p.id}`} />} variant="outline" size="sm" className="w-full gap-1.5">
+                  View &amp; Edit <ChevronRight className="w-3.5 h-3.5" />
                 </Button>
               </CardContent>
             </Card>
