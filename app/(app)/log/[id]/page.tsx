@@ -25,7 +25,7 @@ export default async function LogDetailPage({ params }: Props) {
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button render={<Link href="/log" />} variant="ghost" size="icon">
+        <Button render={<Link href={log.status === "completed" ? `/log?program=${log.programId ?? "unassigned"}` : "/log"} />} variant="ghost" size="icon" aria-label="Back to workout log">
           <ChevronLeft className="w-5 h-5" />
         </Button>
         <div>
