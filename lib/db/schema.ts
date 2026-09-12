@@ -1,5 +1,6 @@
 import {
   pgTable,
+  jsonb,
   text,
   boolean,
   integer,
@@ -109,6 +110,11 @@ export const templateExercise = pgTable("template_exercise", {
   setsMax: integer("setsMax"),
   repsMin: integer("repsMin").notNull().default(5),
   repsMax: integer("repsMax"),
+  section: text("section").notNull().default("main"),
+  superset: text("superset"),
+  totalRepsMin: integer("totalRepsMin"),
+  totalRepsMax: integer("totalRepsMax"),
+  percentages: jsonb("percentages").$type<import("@/lib/prescription").PercentageTarget[]>(),
   weightType: text("weightType").notNull().default("fixed"), // 'fixed' | 'pb_percent' | 'rpe'
   weightValue: numeric("weightValue", { precision: 8, scale: 2 }),
   rpeTarget: numeric("rpeTarget", { precision: 4, scale: 1 }),

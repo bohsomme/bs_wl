@@ -14,8 +14,9 @@ import {
   deleteFunctionalBlock,
 } from "@/lib/actions/programs"
 import { addExercise } from "@/lib/actions/exercises"
-import type { Program, WorkoutTemplate, Exercise, TemplateFunctionalBlock } from "@/lib/db/schema"
+import type { Program, WorkoutTemplate, Exercise, TemplateFunctionalBlock, TemplateExercise } from "@/lib/db/schema"
 import { FUNCTIONAL_PRESETS, functionalHeading, type FunctionalKind } from "@/lib/functional-fitness"
+import { parsePercentages, formatTarget } from "@/lib/prescription"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -45,21 +46,7 @@ const LOADING_ITEMS = [
 const FUNCTIONAL_ITEMS = FUNCTIONAL_PRESETS.map((p) => ({ value: p.kind, label: p.label }))
 
 interface TemplateExerciseRow {
-  te: {
-    id: number
-    workoutTemplateId: number
-    exerciseId: number
-    orderIndex: number
-    setsMin: number
-    setsMax: number | null
-    repsMin: number
-    repsMax: number | null
-    weightType: string
-    weightValue: string | null
-    rpeTarget: string | null
-    notes: string | null
-    createdAt: Date
-  }
+  te: TemplateExercise
   exercise: Exercise
 }
 
@@ -107,6 +94,13 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
   const [weightValue, setWeightValue] = useState("")
   const [rpeTarget, setRpeTarget] = useState("")
   const [exNotes, setExNotes] = useState("")
+
+  const [section, setSection] = useState("main")
+  const [superset, setSuperset] = useState("")
+  const [percentText, setPercentText] = useState("")
+  const [totalRepsMin, setTotalRepsMin] = useState("")
+  const [totalRepsMax, setTotalRepsMax] = useState("")
+  const [exerciseError, setExerciseError] = useState("")
 
   // New exercise form
   const [newExOpen, setNewExOpen] = useState(false)
@@ -207,23 +201,30 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
   function handleAddExercise() {
     if (!selectedExId || !selectedTemplate || !validPrescription) return
     startTransition(async () => {
-      await addTemplateExercise({
-        workoutTemplateId: selectedTemplate.id,
-        exerciseId: selectedExId,
-        orderIndex: templateExercises.length,
-        setsMin: Number(setsMin),
-        setsMax: setsMax ? Number(setsMax) : undefined,
-        repsMin: Number(repsMin),
-        repsMax: repsMax ? Number(repsMax) : undefined,
-        weightType,
-        weightValue: weightValue ? Number(weightValue) : undefined,
-        rpeTarget: rpeTarget ? Number(rpeTarget) : undefined,
-        notes: exNotes || undefined,
-      })
-      const rows = await getTemplateExercises(selectedTemplate.id)
-      setTemplateExercises(rows as TemplateExerciseRow[])
-      resetExForm()
-      setAddExOpen(false)
+      try {
+        await addTemplateExercise({
+          workoutTemplateId: selectedTemplate.id,
+          exerciseId: selectedExId,
+          orderIndex: Math.max(-1, ...templateExercises.map((row) => row.te.orderIndex)) + 1,
+          section,
+          superset: section === "accessory" ? superset.trim() || undefined : undefined,
+          totalRepsMin: totalRepsMin ? Number(totalRepsMin) : undefined,
+          totalRepsMax: totalRepsMax ? Number(totalRepsMax) : undefined,
+          percentages: weightType === "pb_percent" ? parsePercentages(percentText) : undefined,
+          setsMin: Number(setsMin),
+          setsMax: setsMax ? Number(setsMax) : undefined,
+          repsMin: Number(repsMin),
+          repsMax: repsMax ? Number(repsMax) : undefined,
+          weightType,
+          weightValue: weightValue ? Number(weightValue) : undefined,
+          rpeTarget: rpeTarget ? Number(rpeTarget) : undefined,
+          notes: exNotes || undefined,
+        })
+        const rows = await getTemplateExercises(selectedTemplate.id)
+        setTemplateExercises(rows as TemplateExerciseRow[])
+        resetExForm()
+        setAddExOpen(false)
+      } catch (error) { setExerciseError(error instanceof Error ? error.message : "Could not save exercise.") }
     })
   }
 
@@ -247,6 +248,12 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
   }
 
   function resetExForm() {
+    setSection("main")
+    setSuperset("")
+    setPercentText("")
+    setTotalRepsMin("")
+    setTotalRepsMax("")
+    setExerciseError("")
     setSelectedExId(null)
     setSetsMin("3")
     setSetsMax("")
@@ -260,6 +267,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
 
   function describeWeight(te: TemplateExerciseRow["te"]) {
     if (te.weightType === "fixed") return te.weightValue ? `${te.weightValue} kg` : "Fixed"
+    if (te.weightType === "pb_percent" && te.percentages?.length) return te.percentages.map(formatTarget).join(", ") + "% of PB"
     if (te.weightType === "pb_percent") return te.weightValue ? `${te.weightValue}% of PB` : "% of PB"
     if (te.weightType === "rpe") return te.rpeTarget ? `RPE ${te.rpeTarget}` : "RPE"
     return ""
@@ -360,13 +368,13 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
                   >
                     <Copy className="w-3.5 h-3.5" /> Duplicate
                   </Button>
-                  <Button size="sm" className="gap-1.5" onClick={() => setAddExOpen(true)}>
+                  <Button size="sm" className="gap-1.5" onClick={() => { resetExForm(); setAddExOpen(true) }}>
                     <Plus className="w-3.5 h-3.5" /> Add Exercise
                   </Button>
                 </div>
               </div>
 
-              {templateExercises.length === 0 ? (
+              {templateExercises.filter((row) => row.te.section !== "accessory").length === 0 ? (
                 <Card className="border-dashed">
                   <CardContent className="py-10 text-center space-y-2">
                     <Dumbbell className="w-8 h-8 text-muted-foreground/40 mx-auto" />
@@ -376,7 +384,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
                 </Card>
               ) : (
                 <div className="space-y-2">
-                  {templateExercises.map((row, i) => (
+                  {templateExercises.filter((row) => row.te.section !== "accessory").map((row, i) => (
                     <Card key={row.te.id}>
                       <CardContent className="py-3 px-4">
                         <div className="flex items-center justify-between gap-3">
@@ -388,6 +396,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
                                 {row.te.setsMin}{row.te.setsMax ? `–${row.te.setsMax}` : ""} sets &times;{" "}
                                 {row.te.repsMin}{row.te.repsMax ? `–${row.te.repsMax}` : ""} reps
                                 {" · "}{describeWeight(row.te)}
+                                {row.te.totalRepsMin != null && " | Total reps: " + row.te.totalRepsMin + "-" + (row.te.totalRepsMax ?? row.te.totalRepsMin)}
                               </p>
                             </div>
                           </div>
@@ -405,6 +414,26 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
                   ))}
                 </div>
               )}
+
+              <section className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-sm">Accessories</h3>
+                  <Button size="sm" variant="outline" onClick={() => { resetExForm(); setSection("accessory"); setWeightType("rpe"); setAddExOpen(true) }}><Plus className="w-4 h-4" /> Add accessory</Button>
+                </div>
+                {templateExercises.filter((row) => row.te.section === "accessory").length === 0 && <p className="text-xs text-muted-foreground">Add individual exercises or group them into supersets.</p>}
+                {Array.from(new Set(templateExercises.filter((row) => row.te.section === "accessory").map((row) => row.te.superset ?? ""))).map((group) => (
+                  <div key={group} className="space-y-2 rounded-lg border p-3">
+                    {group && <p className="text-sm font-semibold">Superset: {group} <span className="font-normal text-muted-foreground">- alternate exercises each round</span></p>}
+                    {templateExercises.filter((row) => row.te.section === "accessory" && (row.te.superset ?? "") === group).map((row) => (
+                      <div key={row.te.id} className="flex items-center justify-between gap-2">
+                        <div><p className="text-sm font-medium">{row.exercise.name}</p><p className="text-xs text-muted-foreground">{row.te.setsMin}{row.te.setsMax ? "-" + row.te.setsMax : ""} sets &times; {row.te.repsMin}{row.te.repsMax ? "-" + row.te.repsMax : ""} reps{row.te.rpeTarget ? " | RPE " + row.te.rpeTarget : ""}</p></div>
+                        <Button variant="ghost" size="icon" aria-label={"Remove " + row.exercise.name} onClick={() => handleRemoveExercise(row.te.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                      </div>
+                    ))}
+                    {group && templateExercises.filter((row) => row.te.section === "accessory" && row.te.superset === group).length < 2 && <p className="text-xs text-muted-foreground">Add another exercise with this superset name.</p>}
+                  </div>
+                ))}
+              </section>
 
               {/* Functional Fitness */}
               <div className="pt-2">
@@ -522,9 +551,9 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
 
       {/* Add Exercise to Template Dialog */}
       <Dialog open={addExOpen} onOpenChange={(open) => { setAddExOpen(open); if (!open) resetExForm() }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add Exercise</DialogTitle>
+            <DialogTitle>{section === "accessory" ? "Add Accessory" : "Add Exercise"}</DialogTitle>
             <DialogDescription>Prescribe sets, reps, and loading for this exercise.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -570,7 +599,15 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
               </div>
             </div>
 
-            <div className="space-y-1.5">
+            {section === "accessory" && <div className="space-y-1.5">
+              <Label htmlFor="superset">Superset name (optional)</Label>
+              <Input id="superset" placeholder="Use the same name for 2+ exercises" value={superset} onChange={(e) => setSuperset(e.target.value)} />
+            </div>}
+            {section === "main" && <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5"><Label htmlFor="total-reps-min">Total reps (min, optional)</Label><Input id="total-reps-min" type="number" min={1} value={totalRepsMin} onChange={(e) => setTotalRepsMin(e.target.value)} /></div>
+              <div className="space-y-1.5"><Label htmlFor="total-reps-max">Total reps (max, optional)</Label><Input id="total-reps-max" type="number" min={1} placeholder="Same as min" value={totalRepsMax} onChange={(e) => setTotalRepsMax(e.target.value)} /></div>
+            </div>}
+            {section === "main" && <div className="space-y-1.5">
               <Label>Loading type</Label>
               <Select items={LOADING_ITEMS} value={weightType} onValueChange={(value) => { if (value !== null) setWeightType(value) }}>
                 <SelectTrigger>
@@ -582,7 +619,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </div>}
 
             {weightType === "fixed" && (
               <div className="space-y-1.5">
@@ -593,12 +630,13 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
             {weightType === "pb_percent" && (
               <div className="space-y-1.5">
                 <Label>Percentage of PB (%)</Label>
-                <Input type="number" min={1} max={110} placeholder="e.g. 75" value={weightValue} onChange={(e) => setWeightValue(e.target.value)} />
+                <Input placeholder="75 or 75-80 or 70, 75, 80" value={percentText} onChange={(e) => setPercentText(e.target.value)} />
+                <p className="text-xs text-muted-foreground">One percentage or range for all sets, or comma-separated targets for every set (including optional sets). Each set can also have a range.</p>
               </div>
             )}
             {weightType === "rpe" && (
               <div className="space-y-1.5">
-                <Label>RPE target</Label>
+                <Label>RPE target (optional)</Label>
                 <Input type="number" min={1} max={10} step="0.5" placeholder="e.g. 8" value={rpeTarget} onChange={(e) => setRpeTarget(e.target.value)} />
               </div>
             )}
@@ -609,7 +647,8 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddExOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setAddExOpen(false); resetExForm() }}>Cancel</Button>
+            {exerciseError && <p role="alert" className="text-sm text-destructive">{exerciseError}</p>}
             <Button onClick={handleAddExercise} disabled={pending || !selectedExId || !validPrescription}>Add</Button>
           </DialogFooter>
         </DialogContent>
@@ -685,7 +724,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
 
       {/* Functional Fitness Dialog */}
       <Dialog open={ffOpen} onOpenChange={(open) => { setFfOpen(open); if (!open) resetFfForm() }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add Functional Fitness</DialogTitle>
             <DialogDescription>

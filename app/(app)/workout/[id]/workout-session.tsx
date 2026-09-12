@@ -10,6 +10,7 @@ import {
 } from "@/lib/actions/workouts"
 import { addExercise } from "@/lib/actions/exercises"
 import type { Exercise, WorkoutLog, ExerciseLog, SetLog, TemplateExercise, TemplateFunctionalBlock } from "@/lib/db/schema"
+import { percentageAt, formatTarget, weightTarget, rangeStatus } from "@/lib/prescription"
 import { functionalHeading } from "@/lib/functional-fitness"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -61,7 +62,7 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
   const [pending, startTransition] = useTransition()
 
   const [log] = useState(initialDetails.log)
-  const [exerciseLogs, setExerciseLogs] = useState(initialDetails.exerciseLogs)
+  const [exerciseLogs, setExerciseLogs] = useState([...initialDetails.exerciseLogs].sort((a, b) => Number(initialDetails.prescriptionMap[a.el.id]?.section === "accessory") - Number(initialDetails.prescriptionMap[b.el.id]?.section === "accessory")))
   const [setsMap, setSetsMap] = useState(initialDetails.setsMap)
   const functionalBlocks = initialDetails.functionalBlocks ?? []
   const [functionalNotes, setFunctionalNotes] = useState(log.functionalNotes ?? "")
@@ -135,14 +136,19 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
     })
   }
 
-  function defaultWeight(elId: number) {
+  function suggestedWeight(elId: number, setNum: number) {
     const te = initialDetails.prescriptionMap[elId]
     if (te?.weightType === "fixed") return te.weightValue ?? ""
     const row = exerciseLogs.find((row) => row.el.id === elId)
     const pb = row ? pbWeights[row.exercise.id] : undefined
-    if (te?.weightType !== "pb_percent" || te.weightValue == null || pb == null) return ""
-    const weight = Number(pb) * Number(te.weightValue) / 100
-    return Number.isFinite(weight) && weight >= 0 ? String(Number(weight.toFixed(2))) : ""
+    if (te?.weightType !== "pb_percent" || pb == null) return ""
+    const target = percentageAt(te, setNum)
+    return target ? weightTarget(target, Number(pb)) : ""
+  }
+
+  function defaultWeight(elId: number, setNum: number) {
+    const hint = suggestedWeight(elId, setNum)
+    return hint.includes("-") ? "" : hint
   }
 
   function saveSet(elId: number, setNum: number, isMakeup = false, missed = false, addMakeup = false) {
@@ -150,7 +156,12 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
     const saved = getSets(elId).find((s) => s.setNumber === setNum && s.isMakeup === isMakeup)
     const te = initialDetails.prescriptionMap[elId]
     const reps = setReps[k] ?? saved?.reps?.toString() ?? te?.repsMin.toString() ?? ""
-    const weight = setWeight[k] ?? saved?.weight ?? defaultWeight(elId)
+    const weight = setWeight[k] ?? saved?.weight ?? defaultWeight(elId, setNum)
+    const target = te?.weightType === "pb_percent" ? percentageAt(te, setNum) : undefined
+    if (!missed && target?.max != null && target.max !== target.min && weight.trim() === "") {
+      setSaveError("Enter one weight in kg before saving this set.")
+      return
+    }
     if ((reps !== "" && (!Number.isInteger(Number(reps)) || Number(reps) < 0)) ||
         (weight !== "" && (!Number.isFinite(Number(weight)) || Number(weight) < 0))) {
       setSaveError("Enter a valid weight and whole-number reps, both zero or greater.")
@@ -192,8 +203,8 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
   }
 
   function saveExerciseNotes(row: ExerciseLogRow) {
-    const notes = exNotes[row.el.id]
-    const rpe = exRpe[row.el.id]
+    const notes = exNotes[row.el.id] ?? row.el.notes
+    const rpe = exRpe[row.el.id] ?? row.el.topSetRpe
     startTransition(async () => {
       await updateExerciseLog(row.el.id, {
         notes: notes || null,
@@ -452,8 +463,10 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
   const totalSets = numSets(currentRow)
   const extraMakeupCount = Math.max(makeupSets[elId] ?? 0, ...getSets(elId).filter((s) => s.isMakeup).map((s) => s.setNumber))
   const range = (min: number, max: number | null) => max != null && max !== min ? min + "-" + max : String(min)
+  const successfulSets = getSets(elId).filter((set) => !set.missed)
+  const completedReps = successfulSets.reduce((sum, set) => sum + (set.reps ?? 0), 0)
   const weightHint = te?.weightType === "pb_percent"
-    ? (te.weightValue == null ? "" : Number(te.weightValue)) + "% of PB"
+    ? (te.percentages?.map(formatTarget).join(", ") ?? te.weightValue ?? "") + "% of PB"
     : te?.weightType === "rpe" ? "RPE " + (te.rpeTarget ?? "not set") : "kg"
 
   return (
@@ -492,41 +505,12 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
         ))}
       </div>
 
-      {/* Functional Fitness reference */}
-      {functionalBlocks.length > 0 && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-1.5">
-              <Flame className="w-4 h-4 text-primary" /> Functional Fitness
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2.5">
-            {functionalBlocks.map((b) => (
-              <div key={b.id} className="space-y-1">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-sm font-medium">{functionalHeading(b)}</span>
-                  {b.source && <Badge variant="secondary" className="text-xs">{b.source}</Badge>}
-                  {b.durationMin != null && (
-                    <Badge variant="outline" className="text-xs gap-1">
-                      <Clock className="w-3 h-3" /> {b.durationMin} min
-                    </Badge>
-                  )}
-                </div>
-                {b.details && (
-                  <p className="text-xs text-muted-foreground whitespace-pre-wrap">{b.details}</p>
-                )}
-              </div>
-            ))}
-            {functionalNotesField}
-          </CardContent>
-        </Card>
-      )}
-
       {/* Exercise Card */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-2">
             <div>
+              <p className="text-xs text-muted-foreground">{te?.section === "accessory" ? "Accessories" + (te.superset ? " / Superset: " + te.superset : "") : "Main exercises"}</p>
               <CardTitle className="text-lg">{currentRow.exercise.name}</CardTitle>
               {currentRow.exercise.muscleGroup && (
                 <Badge variant="secondary" className="text-xs mt-1">{currentRow.exercise.muscleGroup}</Badge>
@@ -548,6 +532,15 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
             {range(te.setsMin, te.setsMax)} sets &times; {range(te.repsMin, te.repsMax)} reps
             {te.weightType === "fixed" && te.weightValue != null ? " - " + Number(te.weightValue) + " kg" : " - " + weightHint}
           </p>}
+          {te && <div className="flex flex-wrap gap-2" aria-live="polite">
+            {[{ label: "Sets", value: successfulSets.filter((set) => !set.isMakeup).length, min: te.setsMin, max: te.setsMax },
+              ...(te.totalRepsMin == null ? [] : [{ label: "Total reps", value: completedReps, min: te.totalRepsMin, max: te.totalRepsMax }])].map((target) => {
+              const status = rangeStatus(target.value, target.min, target.max)
+              return <span key={target.label} className={cn("rounded-md border px-2 py-1 text-xs font-medium", status === "Within" ? "bg-green-500/10 text-green-700 dark:text-green-400" : status === "Above" ? "bg-red-500/10 text-red-700 dark:text-red-400" : "bg-amber-500/10 text-amber-700 dark:text-amber-400")}>
+                {target.label}: {target.value} / {range(target.min, target.max)} - {status} target
+              </span>
+            })}
+          </div>}
           {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
           <div className="space-y-2">
             {Array.from({ length: totalSets + extraMakeupCount }, (_, i) => {
@@ -559,16 +552,16 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
                 <div key={k} className={cn("rounded-lg border p-2 space-y-2", saved ? saved.missed ? "border-destructive/40 bg-destructive/5" : "border-primary/40 bg-primary/5" : "border-border")}>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">{isMakeup ? "Makeup set" : "Set"} {n}</span>
-                    {te?.weightType === "pb_percent" && te.weightValue != null && (
-                      <span className="rounded-md border bg-muted px-2 py-1 text-xs font-medium">Target: {Number(te.weightValue)}% of PB</span>
+                    {te?.weightType === "pb_percent" && percentageAt(te, n) && (
+                      <span className="rounded-md border bg-muted px-2 py-1 text-xs font-medium">Target: {formatTarget(percentageAt(te, n)!)}% of PB{suggestedWeight(elId, n) ? " | " + suggestedWeight(elId, n) + " kg" : ""}</span>
                     )}
                     {saved && <Badge variant={saved.missed ? "destructive" : "secondary"}>{saved.missed ? "Miss" : "Made"}</Badge>}
                   </div>
                   <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.75fr)_auto_auto] items-end gap-1.5">
                     <div className="min-w-0 space-y-1">
                       <Label htmlFor={"weight-" + k} className="text-xs">Weight (kg)</Label>
-                      <Input id={"weight-" + k} type="number" min={0} step="0.5" placeholder="kg" className="h-9 px-2"
-                        value={setWeight[k] ?? saved?.weight ?? defaultWeight(elId)}
+                      <Input id={"weight-" + k} type="number" min={0} step="any" placeholder={suggestedWeight(elId, n) || "kg"} className="h-9 px-2"
+                        value={setWeight[k] ?? saved?.weight ?? defaultWeight(elId, n)}
                         onChange={(e) => setSetWeight((prev) => ({ ...prev, [k]: e.target.value }))} disabled={pending} />
                     </div>
                     <div className="space-y-1">
@@ -604,7 +597,7 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
                   onClick={() => setExRpe((prev) => ({ ...prev, [elId]: v }))}
                   className={cn(
                     "px-2.5 h-8 rounded-lg text-xs font-medium border transition-colors",
-                    exRpe[elId] === v
+                    (exRpe[elId] ?? currentRow.el.topSetRpe) === v
                       ? "bg-primary text-primary-foreground border-primary"
                       : "border-border hover:bg-accent"
                   )}
@@ -623,13 +616,58 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
             <Textarea
               placeholder="How did this feel? Technique notes..."
               rows={2}
-              value={exNotes[elId] ?? ""}
+              value={exNotes[elId] ?? currentRow.el.notes ?? ""}
               onChange={(e) => setExNotes((prev) => ({ ...prev, [elId]: e.target.value }))}
               onBlur={() => saveExerciseNotes(currentRow)}
             />
           </div>
         </CardContent>
       </Card>
+
+      {exerciseLogs.some((row) => initialDetails.prescriptionMap[row.el.id]?.section === "accessory") && <section className="space-y-2">
+        <h2 className="font-semibold">Accessories</h2>
+        {Array.from(new Set(exerciseLogs.filter((row) => initialDetails.prescriptionMap[row.el.id]?.section === "accessory").map((row) => initialDetails.prescriptionMap[row.el.id].superset ?? ""))).map((group) => <div key={group} className="rounded-lg border p-3 space-y-2">
+          {group && <p className="text-sm font-medium">Superset: {group} - alternate exercises each round</p>}
+          {exerciseLogs.map((row, index) => {
+            const prescription = initialDetails.prescriptionMap[row.el.id]
+            if (prescription?.section !== "accessory" || (prescription.superset ?? "") !== group) return null
+            return <button key={row.el.id} type="button" onClick={() => { saveExerciseNotes(currentRow); setCurrentExIdx(index) }} className={cn("block w-full rounded-md p-2 text-left hover:bg-accent", index === currentExIdx && "bg-accent")}>
+              <p className="text-sm font-medium">{row.exercise.name}</p>
+              <p className="text-xs text-muted-foreground">{range(prescription.setsMin, prescription.setsMax)} sets &times; {range(prescription.repsMin, prescription.repsMax)} reps{prescription.rpeTarget ? " | RPE " + prescription.rpeTarget : ""} | {getSets(row.el.id).filter((set) => !set.missed).length} sets saved</p>
+            </button>
+          })}
+        </div>)}
+      </section>}
+
+      {/* Functional Fitness reference */}
+      {functionalBlocks.length > 0 && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-1.5">
+              <Flame className="w-4 h-4 text-primary" /> Functional Fitness
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2.5">
+            {functionalBlocks.map((b) => (
+              <div key={b.id} className="space-y-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-sm font-medium">{functionalHeading(b)}</span>
+                  {b.source && <Badge variant="secondary" className="text-xs">{b.source}</Badge>}
+                  {b.durationMin != null && (
+                    <Badge variant="outline" className="text-xs gap-1">
+                      <Clock className="w-3 h-3" /> {b.durationMin} min
+                    </Badge>
+                  )}
+                </div>
+                {b.details && (
+                  <p className="text-xs text-muted-foreground whitespace-pre-wrap">{b.details}</p>
+                )}
+              </div>
+            ))}
+            {functionalNotesField}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Navigation */}
       <div className="flex justify-between gap-3">

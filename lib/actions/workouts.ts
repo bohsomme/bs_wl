@@ -255,6 +255,8 @@ export async function upsertSetLog(data: {
   missReason?: string
 }) {
   const userId = await getUserId()
+  if (data.weight != null && (!Number.isFinite(data.weight) || data.weight < 0)) throw new Error("Enter one valid weight in kg.")
+  if (data.reps != null && (!Number.isInteger(data.reps) || data.reps < 0)) throw new Error("Enter whole-number reps, zero or greater.")
 
   const payload: Record<string, unknown> = {
     exerciseLogId: data.exerciseLogId,

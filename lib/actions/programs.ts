@@ -114,6 +114,11 @@ export async function duplicateProgram(id: number) {
         workoutTemplateId: newTemplate.id,
         exerciseId: ex.exerciseId,
         orderIndex: ex.orderIndex,
+        section: ex.section,
+        superset: ex.superset,
+        totalRepsMin: ex.totalRepsMin,
+        totalRepsMax: ex.totalRepsMax,
+        percentages: ex.percentages,
         setsMin: ex.setsMin,
         setsMax: ex.setsMax,
         repsMin: ex.repsMin,
@@ -242,6 +247,11 @@ export async function duplicateWorkoutTemplate(data: {
       workoutTemplateId: newTemplate.id,
       exerciseId: ex.exerciseId,
       orderIndex: ex.orderIndex,
+      section: ex.section,
+      superset: ex.superset,
+      totalRepsMin: ex.totalRepsMin,
+      totalRepsMax: ex.totalRepsMax,
+      percentages: ex.percentages,
       setsMin: ex.setsMin,
       setsMax: ex.setsMax,
       repsMin: ex.repsMin,
@@ -334,12 +344,26 @@ export async function addTemplateExercise(data: {
   setsMax?: number
   repsMin: number
   repsMax?: number
+  section?: string
+  superset?: string
+  totalRepsMin?: number
+  totalRepsMax?: number
+  percentages?: import("@/lib/prescription").PercentageTarget[]
   weightType: string
   weightValue?: number
   rpeTarget?: number
   notes?: string
 }) {
   await getUserId()
+  for (const [min, max] of [[data.setsMin, data.setsMax], [data.repsMin, data.repsMax], [data.totalRepsMin, data.totalRepsMax]]) {
+    if ((min != null && (!Number.isInteger(min) || min < 1)) || (max != null && (min == null || !Number.isInteger(max) || max < min))) throw new Error("Enter valid, ordered set and rep ranges.")
+  }
+  if (data.percentages) {
+    const { parsePercentages, formatTarget } = await import("@/lib/prescription")
+    parsePercentages(data.percentages.map(formatTarget).join(","))
+    if (data.percentages.length !== 1 && data.percentages.length !== (data.setsMax ?? data.setsMin)) throw new Error("Specify a percentage for every possible set.")
+  }
+  if (data.rpeTarget != null && (!Number.isFinite(data.rpeTarget) || data.rpeTarget < 1 || data.rpeTarget > 10)) throw new Error("RPE must be between 1 and 10.")
   const [te] = await db
     .insert(templateExercise)
     .values({
