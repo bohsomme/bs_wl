@@ -40,16 +40,18 @@ export function ProgramList({ initialPrograms }: ProgramListProps) {
   const [createOpen, setCreateOpen] = useState(false)
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
-  const [totalWeeks, setTotalWeeks] = useState(4)
+  const [totalWeeks, setTotalWeeks] = useState("4")
+  const weeksCount = Number(totalWeeks)
+  const validWeeks = totalWeeks.trim() !== "" && Number.isInteger(weeksCount) && weeksCount >= 1 && weeksCount <= 52
 
   function handleCreate() {
-    if (!name.trim()) return
+    if (!name.trim() || !validWeeks) return
     startTransition(async () => {
-      const p = await createProgram({ name: name.trim(), description: description.trim() || undefined, totalWeeks })
+      const p = await createProgram({ name: name.trim(), description: description.trim() || undefined, totalWeeks: weeksCount })
       setPrograms((prev) => [...prev, p])
       setName("")
       setDescription("")
-      setTotalWeeks(4)
+      setTotalWeeks("4")
       setCreateOpen(false)
     })
   }
@@ -140,14 +142,14 @@ export function ProgramList({ initialPrograms }: ProgramListProps) {
                   min={1}
                   max={52}
                   value={totalWeeks}
-                  onChange={(e) => setTotalWeeks(Number(e.target.value))}
+                  onChange={(e) => setTotalWeeks(e.target.value)}
                   className="w-24"
                 />
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
-              <Button onClick={handleCreate} disabled={pending || !name.trim()}>Create</Button>
+              <Button onClick={handleCreate} disabled={pending || !name.trim() || !validWeeks}>Create</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

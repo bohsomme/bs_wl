@@ -728,8 +728,9 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
               <Label>Exercise</Label>
               <div className="flex gap-2">
                 <Select
-                  value={selectedAddExId ? String(selectedAddExId) : ""}
-                  onValueChange={(v) => setSelectedAddExId(Number(v))}
+                  items={localExercises.map((ex) => ({ value: String(ex.id), label: ex.name }))}
+                  value={selectedAddExId !== null ? String(selectedAddExId) : null}
+                  onValueChange={(v) => setSelectedAddExId(v === null ? null : Number(v))}
                 >
                   <SelectTrigger className="flex-1">
                     <SelectValue placeholder="Select exercise..." />

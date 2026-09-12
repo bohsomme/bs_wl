@@ -36,6 +36,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ChevronLeft, Plus, Trash2, Dumbbell, GripVertical, Settings, Copy, Flame, Clock } from "lucide-react"
 
 const DAYS = Array.from({ length: 7 }, (_, i) => `Day ${i + 1}`)
+const DAY_ITEMS = DAYS.map((label, i) => ({ value: String(i + 1), label }))
+const LOADING_ITEMS = [
+  { value: "fixed", label: "Fixed weight (kg)" },
+  { value: "pb_percent", label: "% of Personal Best" },
+  { value: "rpe", label: "RPE target" },
+]
+const FUNCTIONAL_ITEMS = FUNCTIONAL_PRESETS.map((p) => ({ value: p.kind, label: p.label }))
 
 interface TemplateExerciseRow {
   te: {
@@ -480,7 +487,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Week</Label>
-                <Select value={String(newTemplateWeek)} onValueChange={(v) => setNewTemplateWeek(Number(v))}>
+                <Select items={weeks.map((w) => ({ value: String(w), label: `Week ${w}` }))} value={String(newTemplateWeek)} onValueChange={(v) => setNewTemplateWeek(Number(v))}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -493,7 +500,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
               </div>
               <div className="space-y-1.5">
                 <Label>Day</Label>
-                <Select value={String(newTemplateDay)} onValueChange={(v) => setNewTemplateDay(Number(v))}>
+                <Select items={DAY_ITEMS} value={String(newTemplateDay)} onValueChange={(v) => setNewTemplateDay(Number(v))}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -525,11 +532,12 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
               <Label>Exercise</Label>
               <div className="flex gap-2">
                 <Select
-                  value={selectedExId ? String(selectedExId) : ""}
-                  onValueChange={(v) => setSelectedExId(Number(v))}
+                  items={exercises.map((ex) => ({ value: String(ex.id), label: ex.name }))}
+                  value={selectedExId !== null ? String(selectedExId) : null}
+                  onValueChange={(v) => setSelectedExId(v === null ? null : Number(v))}
                 >
                   <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Select exercise...">{exercises.find((ex) => ex.id === selectedExId)?.name}</SelectValue>
+                    <SelectValue placeholder="Select exercise..." />
                   </SelectTrigger>
                   <SelectContent>
                     {exercises.map((ex) => (
@@ -564,14 +572,14 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
 
             <div className="space-y-1.5">
               <Label>Loading type</Label>
-              <Select value={weightType} onValueChange={(value) => { if (value !== null) setWeightType(value) }}>
+              <Select items={LOADING_ITEMS} value={weightType} onValueChange={(value) => { if (value !== null) setWeightType(value) }}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="fixed">Fixed weight (kg)</SelectItem>
-                  <SelectItem value="pb_percent">% of Personal Best</SelectItem>
-                  <SelectItem value="rpe">RPE target</SelectItem>
+                  {LOADING_ITEMS.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -643,7 +651,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
           <div className="grid grid-cols-2 gap-3 py-2">
             <div className="space-y-1.5">
               <Label>Week</Label>
-              <Select value={String(dupWeek)} onValueChange={(v) => setDupWeek(Number(v))}>
+              <Select items={weeks.map((w) => ({ value: String(w), label: `Week ${w}` }))} value={String(dupWeek)} onValueChange={(v) => setDupWeek(Number(v))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -656,13 +664,13 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
             </div>
             <div className="space-y-1.5">
               <Label>Day</Label>
-              <Select value={String(dupDay)} onValueChange={(v) => setDupDay(Number(v))}>
+              <Select items={DAY_ITEMS} value={String(dupDay)} onValueChange={(v) => setDupDay(Number(v))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {DAYS.map((d, i) => (
-                    <SelectItem key={i} value={String(i)}>{d}</SelectItem>
+                    <SelectItem key={i} value={String(i + 1)}>{d}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -687,7 +695,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
               <Label>Type</Label>
-              <Select value={ffKind} onValueChange={(v) => setFfKind(v as FunctionalKind)}>
+              <Select items={FUNCTIONAL_ITEMS} value={ffKind} onValueChange={(v) => setFfKind(v as FunctionalKind)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
