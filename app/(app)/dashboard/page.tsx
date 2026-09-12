@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { getSession } from "@/lib/actions/auth"
+import { getPrograms, getWorkoutTemplates } from "@/lib/actions/programs"
+import { ProgramCalendar } from "@/components/program-calendar"
 import { getNextWorkout, getActiveWorkout } from "@/lib/actions/workouts"
 import { getWorkoutLogs } from "@/lib/actions/workouts"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -28,11 +30,14 @@ export default async function HomePage() {
   const session = await getSession()
   if (!session?.user) redirect("/sign-in")
 
-  const [next, active, recentLogs] = await Promise.all([
+  const [next, active, recentLogs, programs] = await Promise.all([
     getNextWorkout(),
     getActiveWorkout(),
     getWorkoutLogs(),
+    getPrograms(),
   ])
+  const assignedProgram = programs.find((program) => program.isActive)
+  const plannedWorkouts = assignedProgram?.startDate ? await getWorkoutTemplates(assignedProgram.id) : []
 
   return (
     <div className="space-y-6">
@@ -143,6 +148,15 @@ export default async function HomePage() {
           </CardContent>
         </Card>
       </div>
+
+      {assignedProgram?.startDate && (
+        <ProgramCalendar
+          key={`${assignedProgram.id}-${assignedProgram.startDate}`}
+          program={{ ...assignedProgram, startDate: assignedProgram.startDate }}
+          templates={plannedWorkouts}
+          today={new Date().toISOString().slice(0, 10)}
+        />
+      )}
 
       {/* Recent workouts */}
       {recentLogs.length > 0 && (

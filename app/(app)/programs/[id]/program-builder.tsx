@@ -347,7 +347,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
                     className="gap-1.5"
                     onClick={() => {
                       setDupWeek(Math.min(selectedTemplate.weekNumber + 1, program.totalWeeks))
-                      setDupDay(selectedTemplate.dayOfWeek)
+                      setDupDay(selectedTemplate.dayNumber)
                       setDupOpen(true)
                     }}
                   >

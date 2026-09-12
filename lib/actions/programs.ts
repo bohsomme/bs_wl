@@ -227,7 +227,7 @@ export async function duplicateWorkoutTemplate(data: {
       programId: source.programId,
       name: source.name,
       weekNumber: data.targetWeek,
-      dayOfWeek: data.targetDay,
+      dayNumber: data.targetDay,
       orderInDay: source.orderInDay,
     })
     .returning()
