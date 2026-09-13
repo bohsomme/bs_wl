@@ -1,22 +1,4 @@
 "use client"
-
-import { useState, useTransition } from "react"
-import { addExercise, deleteExercise, upsertPersonalBest } from "@/lib/actions/exercises"
-import type { Exercise } from "@/lib/db/schema"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,19 +9,28 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Plus, Trash2, Trophy, Search } from "lucide-react"
-import { calculateOneRepMax } from "@/lib/strength"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { addExercise, deleteExercise, upsertPersonalBest } from "@/lib/actions/exercises"
+import type { Exercise, PersonalBest } from "@/lib/db/schema"
+import { Trophy } from "lucide-react"
+import { useState, useTransition } from "react"
+import { ExerciseLibraryTab } from "./exercise-library-tab"
+import { PersonalBestDialog } from "./personal-best-dialog"
+import { PersonalBestsTab } from "./personal-bests-tab"
 
 type PbRow = {
-  pb: {
-    id: number
-    userId: string
-    exerciseId: number
-    weight: string
-    reps: number
-    setAt: Date
-    createdAt: Date
-  }
+  pb: PersonalBest
   exercise: Exercise
 }
 
@@ -163,116 +154,21 @@ export function ExerciseLibrary({ initialExercises, initialPbs }: ExerciseLibrar
         </TabsList>
 
         {/* Exercise Library tab */}
-        <TabsContent value="library" className="space-y-4 mt-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative min-w-40 flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search exercises..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <Button className="gap-2 shrink-0" onClick={() => setNewExOpen(true)}>
-              <Plus className="w-4 h-4" /> Add Exercise
-            </Button>
-          </div>
-
-          {groups.map((group) => {
-            const groupExercises = filtered.filter((ex) => (ex.muscleGroup ?? "Other") === group)
-            return (
-              <div key={group}>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{group}</p>
-                <div className="space-y-1">
-                  {groupExercises.map((ex) => (
-                    <div
-                      key={ex.id}
-                      className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-card border border-border hover:bg-accent/40 transition-colors group"
-                    >
-                      <div className="min-w-0">
-                        <p className="font-medium text-sm">{ex.name}</p>
-                        {ex.description && (
-                          <p className="text-xs text-muted-foreground truncate">{ex.description}</p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {pbMap[ex.id] && (
-                          <div className="text-right">
-                            <Badge variant="secondary" className="text-xs">
-                              {pbMap[ex.id].weight} kg &times; {pbMap[ex.id].reps}
-                            </Badge>
-                            {pbMap[ex.id].reps > 1 && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Predicted 1RM: {Number(calculateOneRepMax(Number(pbMap[ex.id].weight), pbMap[ex.id].reps).toFixed(1))} kg
-                              </p>
-                            )}
-                          </div>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-xs h-9"
-                          onClick={() => openPbForm(ex.id)}
-                        >
-                          <Trophy className="w-3.5 h-3.5 mr-1" />
-                          Set PB
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-9 w-9 "
-                          onClick={() => setDeleteId(ex.id)}
-                        >
-                          <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-
-          {filtered.length === 0 && (
-            <div className="text-center py-10 text-muted-foreground text-sm">
-              No exercises found. Add one above.
-            </div>
-          )}
-        </TabsContent>
+        <ExerciseLibraryTab
+          search={search}
+          setSearch={setSearch}
+          setNewExOpen={setNewExOpen}
+          groups={groups}
+          filtered={filtered}
+          pbMap={pbMap}
+          openPbForm={openPbForm}
+          setDeleteId={setDeleteId}
+        />
 
         {/* Personal Bests tab */}
-        <TabsContent value="pbs" className="mt-4">
-          {pbs.length === 0 ? (
-            <div className="text-center py-12 space-y-2">
-              <Trophy className="w-10 h-10 text-muted-foreground/30 mx-auto" />
-              <p className="font-medium text-sm">No personal bests yet</p>
-              <p className="text-xs text-muted-foreground">PBs update automatically when you hit new records during workouts.</p>
-            </div>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {pbs.map(({ pb, exercise }) => (
-                <Card key={pb.id}>
-                  <CardContent className="py-4 flex items-center justify-between gap-2">
-                    <div>
-                      <p className="font-semibold text-sm">{exercise.name}</p>
-                      <p className="text-xs text-muted-foreground">{exercise.muscleGroup}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-lg text-primary">{pb.weight} kg</p>
-                      <p className="text-xs text-muted-foreground">&times; {pb.reps} rep{pb.reps !== 1 ? "s" : ""}</p>
-                      {pb.reps > 1 && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Predicted 1RM: {Number(calculateOneRepMax(Number(pb.weight), pb.reps).toFixed(1))} kg
-                        </p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
+        <PersonalBestsTab
+          pbs={pbs}
+        />
       </Tabs>
 
       {/* Add Exercise Dialog */}
@@ -304,35 +200,18 @@ export function ExerciseLibrary({ initialExercises, initialPbs }: ExerciseLibrar
       </Dialog>
 
       {/* Set PB Dialog */}
-      <Dialog open={pbOpen} onOpenChange={setPbOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Set Personal Best</DialogTitle>
-            <DialogDescription>
-              Record a manual PB for {exercises.find((e) => e.id === pbExId)?.name}.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label>Weight (kg)</Label>
-              <Input type="number" step="0.5" placeholder="e.g. 150" value={pbWeight} onChange={(e) => setPbWeight(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Reps</Label>
-              <Input type="number" min={1} value={pbReps} onChange={(e) => setPbReps(e.target.value)} />
-            </div>
-            {Number(pbWeight) > 0 && Number(pbReps) > 1 && (
-              <p className="text-sm text-muted-foreground">
-                Predicted 1RM: {Number(calculateOneRepMax(Number(pbWeight), Number(pbReps)).toFixed(1))} kg. Used for percentage-based default weights.
-              </p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPbOpen(false)}>Cancel</Button>
-            <Button onClick={handleSavePb} disabled={pending || !pbWeight}>Save PB</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <PersonalBestDialog
+        pbOpen={pbOpen}
+        setPbOpen={setPbOpen}
+        exercises={exercises}
+        pbExId={pbExId}
+        pbWeight={pbWeight}
+        setPbWeight={setPbWeight}
+        pbReps={pbReps}
+        setPbReps={setPbReps}
+        handleSavePb={handleSavePb}
+        pending={pending}
+      />
 
       {/* Delete Exercise Confirm */}
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
