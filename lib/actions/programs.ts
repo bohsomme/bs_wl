@@ -378,6 +378,12 @@ export async function addTemplateExercise(data: {
 export async function updateTemplateExercise(
   id: number,
   data: Partial<{
+    exerciseId: number
+    section: string
+    superset: string | null
+    totalRepsMin: number | null
+    totalRepsMax: number | null
+    percentages: import("@/lib/prescription").PercentageTarget[] | null
     setsMin: number
     setsMax: number | null
     repsMin: number
@@ -389,7 +395,23 @@ export async function updateTemplateExercise(
     orderIndex: number
   }>
 ) {
-  await getUserId()
+  const userId = await getUserId()
+  const [existing] = await db.select({ te: templateExercise, programId: program.id })
+    .from(templateExercise)
+    .innerJoin(workoutTemplate, eq(templateExercise.workoutTemplateId, workoutTemplate.id))
+    .innerJoin(program, eq(workoutTemplate.programId, program.id))
+    .where(and(eq(templateExercise.id, id), eq(program.userId, userId)))
+  if (!existing) throw new Error("Exercise not found")
+  const next = { ...existing.te, ...data }
+  for (const [min, max] of [[next.setsMin, next.setsMax], [next.repsMin, next.repsMax], [next.totalRepsMin, next.totalRepsMax]]) {
+    if ((min != null && (!Number.isInteger(min) || min < 1)) || (max != null && (min == null || !Number.isInteger(max) || max < min))) throw new Error("Enter valid, ordered set and rep ranges.")
+  }
+  if (next.percentages) {
+    const { parsePercentages, formatTarget } = await import("@/lib/prescription")
+    parsePercentages(next.percentages.map(formatTarget).join(","))
+    if (next.percentages.length !== 1 && next.percentages.length !== (next.setsMax ?? next.setsMin)) throw new Error("Specify a percentage for every possible set.")
+  }
+  if (next.rpeTarget != null && (!Number.isFinite(Number(next.rpeTarget)) || Number(next.rpeTarget) < 1 || Number(next.rpeTarget) > 10)) throw new Error("RPE must be between 1 and 10.")
   const [te] = await db
     .update(templateExercise)
     .set({
@@ -399,6 +421,7 @@ export async function updateTemplateExercise(
     })
     .where(eq(templateExercise.id, id))
     .returning()
+  revalidatePath(`/programs/${existing.programId}`)
   return te
 }
 

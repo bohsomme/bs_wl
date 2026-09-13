@@ -7,6 +7,7 @@ import {
   deleteWorkoutTemplate,
   getTemplateExercises,
   addTemplateExercise,
+  updateTemplateExercise,
   deleteTemplateExercise,
   duplicateWorkoutTemplate,
   getFunctionalBlocks,
@@ -85,6 +86,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
 
   // Add exercise to template
   const [addExOpen, setAddExOpen] = useState(false)
+  const [editingExercise, setEditingExercise] = useState<TemplateExercise | null>(null)
   const [selectedExId, setSelectedExId] = useState<number | null>(null)
   const [setsMin, setSetsMin] = useState("3")
   const [setsMax, setSetsMax] = useState("")
@@ -202,10 +204,8 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
     if (!selectedExId || !selectedTemplate || !validPrescription) return
     startTransition(async () => {
       try {
-        await addTemplateExercise({
-          workoutTemplateId: selectedTemplate.id,
+        const data = {
           exerciseId: selectedExId,
-          orderIndex: Math.max(-1, ...templateExercises.map((row) => row.te.orderIndex)) + 1,
           section,
           superset: section === "accessory" ? superset.trim() || undefined : undefined,
           totalRepsMin: totalRepsMin ? Number(totalRepsMin) : undefined,
@@ -219,7 +219,27 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
           weightValue: weightValue ? Number(weightValue) : undefined,
           rpeTarget: rpeTarget ? Number(rpeTarget) : undefined,
           notes: exNotes || undefined,
-        })
+        }
+        if (editingExercise) {
+          await updateTemplateExercise(editingExercise.id, {
+            ...data,
+            superset: data.superset ?? null,
+            totalRepsMin: data.totalRepsMin ?? null,
+            totalRepsMax: data.totalRepsMax ?? null,
+            percentages: data.percentages ?? null,
+            setsMax: data.setsMax ?? null,
+            repsMax: data.repsMax ?? null,
+            weightValue: weightType === "fixed" ? data.weightValue ?? null : null,
+            rpeTarget: weightType === "rpe" ? data.rpeTarget ?? null : null,
+            notes: data.notes ?? null,
+          })
+        } else {
+          await addTemplateExercise({
+            ...data,
+            workoutTemplateId: selectedTemplate.id,
+            orderIndex: Math.max(-1, ...templateExercises.map((row) => row.te.orderIndex)) + 1,
+          })
+        }
         const rows = await getTemplateExercises(selectedTemplate.id)
         setTemplateExercises(rows as TemplateExerciseRow[])
         resetExForm()
@@ -248,6 +268,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
   }
 
   function resetExForm() {
+    setEditingExercise(null)
     setSection("main")
     setSuperset("")
     setPercentText("")
@@ -263,6 +284,26 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
     setWeightValue("")
     setRpeTarget("")
     setExNotes("")
+  }
+
+  function handleEditExercise(te: TemplateExercise) {
+    resetExForm()
+    setEditingExercise(te)
+    setSelectedExId(te.exerciseId)
+    setSection(te.section)
+    setSuperset(te.superset ?? "")
+    setSetsMin(String(te.setsMin))
+    setSetsMax(te.setsMax == null ? "" : String(te.setsMax))
+    setRepsMin(String(te.repsMin))
+    setRepsMax(te.repsMax == null ? "" : String(te.repsMax))
+    setTotalRepsMin(te.totalRepsMin == null ? "" : String(te.totalRepsMin))
+    setTotalRepsMax(te.totalRepsMax == null ? "" : String(te.totalRepsMax))
+    setWeightType(te.weightType)
+    setWeightValue(te.weightValue ?? "")
+    setPercentText(te.percentages?.length ? te.percentages.map(formatTarget).join(", ") : te.weightType === "pb_percent" ? te.weightValue ?? "" : "")
+    setRpeTarget(te.rpeTarget ?? "")
+    setExNotes(te.notes ?? "")
+    setAddExOpen(true)
   }
 
   function describeWeight(te: TemplateExerciseRow["te"]) {
@@ -400,6 +441,8 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
                               </p>
                             </div>
                           </div>
+                          <div className="flex items-center shrink-0">
+                          <Button variant="ghost" size="sm" disabled={pending} aria-label={"Edit " + row.exercise.name} onClick={() => handleEditExercise(row.te)}>Edit</Button>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -408,6 +451,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
                           >
                             <Trash2 className="w-3.5 h-3.5 text-destructive" />
                           </Button>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -427,7 +471,10 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
                     {templateExercises.filter((row) => row.te.section === "accessory" && (row.te.superset ?? "") === group).map((row) => (
                       <div key={row.te.id} className="flex items-center justify-between gap-2">
                         <div><p className="text-sm font-medium">{row.exercise.name}</p><p className="text-xs text-muted-foreground">{row.te.setsMin}{row.te.setsMax ? "-" + row.te.setsMax : ""} sets &times; {row.te.repsMin}{row.te.repsMax ? "-" + row.te.repsMax : ""} reps{row.te.rpeTarget ? " | RPE " + row.te.rpeTarget : ""}</p></div>
-                        <Button variant="ghost" size="icon" aria-label={"Remove " + row.exercise.name} onClick={() => handleRemoveExercise(row.te.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                        <div className="flex items-center shrink-0">
+                          <Button variant="ghost" size="sm" disabled={pending} aria-label={"Edit " + row.exercise.name} onClick={() => handleEditExercise(row.te)}>Edit</Button>
+                          <Button variant="ghost" size="icon" aria-label={"Remove " + row.exercise.name} onClick={() => handleRemoveExercise(row.te.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                        </div>
                       </div>
                     ))}
                     {group && templateExercises.filter((row) => row.te.section === "accessory" && row.te.superset === group).length < 2 && <p className="text-xs text-muted-foreground">Add another exercise with this superset name.</p>}
@@ -550,10 +597,10 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
       </Dialog>
 
       {/* Add Exercise to Template Dialog */}
-      <Dialog open={addExOpen} onOpenChange={(open) => { setAddExOpen(open); if (!open) resetExForm() }}>
+      <Dialog open={addExOpen} onOpenChange={(open) => { if (pending) return; setAddExOpen(open); if (!open) resetExForm() }}>
         <DialogContent className="max-w-lg max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{section === "accessory" ? "Add Accessory" : "Add Exercise"}</DialogTitle>
+            <DialogTitle>{editingExercise ? "Edit" : "Add"} {section === "accessory" ? "Accessory" : "Exercise"}</DialogTitle>
             <DialogDescription>Prescribe sets, reps, and loading for this exercise.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -647,9 +694,9 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setAddExOpen(false); resetExForm() }}>Cancel</Button>
+            <Button variant="outline" disabled={pending} onClick={() => { setAddExOpen(false); resetExForm() }}>Cancel</Button>
             {exerciseError && <p role="alert" className="text-sm text-destructive">{exerciseError}</p>}
-            <Button onClick={handleAddExercise} disabled={pending || !selectedExId || !validPrescription}>Add</Button>
+            <Button onClick={handleAddExercise} disabled={pending || !selectedExId || !validPrescription}>{pending ? "Saving..." : editingExercise ? "Save changes" : "Add"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
