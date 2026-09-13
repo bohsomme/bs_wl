@@ -94,7 +94,7 @@ export default async function LogDetailPage({ params }: Props) {
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <CardTitle className="text-base">{exercise.name}</CardTitle>
+                    <CardTitle className="text-base">{exercise?.name ?? el.exerciseName ?? "Free-pick exercise"}</CardTitle>
                     {el.skipped && <Badge variant="outline" className="text-xs">Skipped</Badge>}
                   </div>
                   {el.topSetRpe && (
@@ -104,6 +104,7 @@ export default async function LogDetailPage({ params }: Props) {
                   )}
                 </div>
               </CardHeader>
+              {el.freePickCriteria && <p className="px-6 pb-2 text-sm whitespace-pre-wrap text-muted-foreground">Free-pick: {el.freePickCriteria}{el.superset ? ` | Superset: ${el.superset}` : ""}</p>}
               {!el.skipped && (
                 <CardContent className="space-y-2">
                   {sets.length > 0 ? (

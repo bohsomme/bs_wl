@@ -104,7 +104,8 @@ export const workoutTemplate = pgTable("workout_template", {
 export const templateExercise = pgTable("template_exercise", {
   id: serial("id").primaryKey(),
   workoutTemplateId: integer("workoutTemplateId").notNull(),
-  exerciseId: integer("exerciseId").notNull(),
+  exerciseId: integer("exerciseId"),
+  freePickCriteria: text("freePickCriteria"),
   orderIndex: integer("orderIndex").notNull().default(0),
   setsMin: integer("setsMin").notNull().default(3),
   setsMax: integer("setsMax"),
@@ -153,9 +154,12 @@ export const workoutLog = pgTable("workout_log", {
 })
 
 export const exerciseLog = pgTable("exercise_log", {
+  exerciseName: text("exerciseName"),
+  superset: text("superset"),
   id: serial("id").primaryKey(),
   workoutLogId: integer("workoutLogId").notNull(),
-  exerciseId: integer("exerciseId").notNull(),
+  exerciseId: integer("exerciseId"),
+  freePickCriteria: text("freePickCriteria"),
   orderIndex: integer("orderIndex").notNull().default(0),
   topSetRpe: numeric("topSetRpe", { precision: 4, scale: 1 }),
   notes: text("notes"),

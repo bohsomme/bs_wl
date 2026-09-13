@@ -35,8 +35,8 @@ import {
 } from "lucide-react"
 
 type ExerciseLogRow = {
-  el: ExerciseLog & { id: number; workoutLogId: number; exerciseId: number; orderIndex: number; topSetRpe: string | null; notes: string | null; skipped: boolean; createdAt: Date }
-  exercise: Exercise
+  el: ExerciseLog
+  exercise: Exercise | null
 }
 
 type WorkoutDetails = {
@@ -77,6 +77,7 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
   const [preNotes, setPreNotes] = useState(log.preNotes ?? "")
 
   // Per-exercise state (keyed by exerciseLogId)
+  const [chosenNames, setChosenNames] = useState<Record<number, string>>({})
   const [exNotes, setExNotes] = useState<Record<number, string>>({})
   const [exRpe, setExRpe] = useState<Record<number, string>>({})
 
@@ -140,7 +141,7 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
     const te = initialDetails.prescriptionMap[elId]
     if (te?.weightType === "fixed") return te.weightValue ?? ""
     const row = exerciseLogs.find((row) => row.el.id === elId)
-    const pb = row ? pbWeights[row.exercise.id] : undefined
+    const pb = row?.exercise ? pbWeights[row.exercise.id] : undefined
     if (te?.weightType !== "pb_percent" || pb == null) return ""
     const target = percentageAt(te, setNum)
     return target ? weightTarget(target, Number(pb)) : ""
@@ -171,6 +172,7 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
       setSaveError(null)
       try {
         const result = await upsertSetLog({
+          exerciseName: chosenNames[elId] ?? exerciseLogs.find((row) => row.el.id === elId)?.el.exerciseName ?? undefined,
           exerciseLogId: elId, setNumber: setNum, isMakeup,
           reps: reps === "" ? undefined : Number(reps),
           weight: weight === "" ? undefined : Number(weight),
@@ -181,8 +183,8 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
         ] }))
         if (missed) setMissModalKey(null)
         if (addMakeup) addMakeupSet(elId)
-      } catch {
-        setSaveError("Could not save the set. Please try again.")
+      } catch (error) {
+        setSaveError(error instanceof Error ? error.message : "Could not save the set. Please try again.")
       }
     })
   }
@@ -511,9 +513,15 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
           <div className="flex items-start justify-between gap-2">
             <div>
               <p className="text-xs text-muted-foreground">{te?.section === "accessory" ? "Accessories" + (te.superset ? " / Superset: " + te.superset : "") : "Main exercises"}</p>
-              <CardTitle className="text-lg">{currentRow.exercise.name}</CardTitle>
-              {currentRow.exercise.muscleGroup && (
-                <Badge variant="secondary" className="text-xs mt-1">{currentRow.exercise.muscleGroup}</Badge>
+              {currentRow.el.exerciseId == null && <div className="space-y-2 mb-3">
+                <p className="text-sm whitespace-pre-wrap">Free-pick criteria: {currentRow.el.freePickCriteria}</p>
+                <Label htmlFor="chosen-exercise">Exercise you chose</Label>
+                <Input id="chosen-exercise" placeholder="Enter exercise name" value={chosenNames[elId] ?? currentRow.el.exerciseName ?? ""} onChange={(e) => setChosenNames((prev) => ({ ...prev, [elId]: e.target.value }))} />
+                <p className="text-xs text-muted-foreground">Saved with each set in this workout log.</p>
+              </div>}
+              <CardTitle className="text-lg">{currentRow.exercise?.name ?? chosenNames[elId] ?? currentRow.el.exerciseName ?? "Free-pick exercise"}</CardTitle>
+              {currentRow.exercise?.muscleGroup && (
+                <Badge variant="secondary" className="text-xs mt-1">{currentRow.exercise?.muscleGroup}</Badge>
               )}
             </div>
             <Button
@@ -578,9 +586,9 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
                 </div>
               )
             })}
-            {te?.setsMax != null && totalSets < te.setsMax && (
+            {(currentRow.el.exerciseId == null || (te?.setsMax != null && totalSets < te.setsMax)) && (
               <Button variant="outline" size="sm" onClick={() => setWorkingSets((prev) => ({ ...prev, [elId]: totalSets + 1 }))}>
-                <Plus className="w-4 h-4" /> Add set ({totalSets}/{te.setsMax})
+                <Plus className="w-4 h-4" /> Add set ({totalSets}{te?.setsMax ? `/${te.setsMax}` : ""})
               </Button>
             )}
           </div>
@@ -632,7 +640,7 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
             const prescription = initialDetails.prescriptionMap[row.el.id]
             if (prescription?.section !== "accessory" || (prescription.superset ?? "") !== group) return null
             return <button key={row.el.id} type="button" onClick={() => { saveExerciseNotes(currentRow); setCurrentExIdx(index) }} className={cn("block w-full rounded-md p-2 text-left hover:bg-accent", index === currentExIdx && "bg-accent")}>
-              <p className="text-sm font-medium">{row.exercise.name}</p>
+              <p className="text-sm font-medium">{row.exercise?.name ?? chosenNames[row.el.id] ?? row.el.exerciseName ?? "Free-pick exercise"}</p>
               <p className="text-xs text-muted-foreground">{range(prescription.setsMin, prescription.setsMax)} sets &times; {range(prescription.repsMin, prescription.repsMax)} reps{prescription.rpeTarget ? " | RPE " + prescription.rpeTarget : ""} | {getSets(row.el.id).filter((set) => !set.missed).length} sets saved</p>
             </button>
           })}

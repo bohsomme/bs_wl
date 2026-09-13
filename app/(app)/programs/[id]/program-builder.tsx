@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react"
 import Link from "next/link"
+import { AccessoryForm } from "./accessory-form"
 import {
   createWorkoutTemplate,
   deleteWorkoutTemplate,
@@ -48,7 +49,7 @@ const FUNCTIONAL_ITEMS = FUNCTIONAL_PRESETS.map((p) => ({ value: p.kind, label: 
 
 interface TemplateExerciseRow {
   te: TemplateExercise
-  exercise: Exercise
+  exercise: Exercise | null
 }
 
 interface ProgramBuilderProps {
@@ -201,11 +202,12 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
     && (repsMax === "" || (validCount(repsMax) && Number(repsMax) >= Number(repsMin)))
 
   function handleAddExercise() {
-    if (!selectedExId || !selectedTemplate || !validPrescription) return
+    if ((!selectedExId && !editingExercise?.freePickCriteria) || !selectedTemplate || !validPrescription) return
     startTransition(async () => {
       try {
         const data = {
           exerciseId: selectedExId,
+          freePickCriteria: selectedExId ? null : editingExercise?.freePickCriteria,
           section,
           superset: section === "accessory" ? superset.trim() || undefined : undefined,
           totalRepsMin: totalRepsMin ? Number(totalRepsMin) : undefined,
@@ -432,7 +434,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
                           <div className="flex items-center gap-3 min-w-0">
                             <span className="text-muted-foreground text-sm w-5 text-center shrink-0">{i + 1}</span>
                             <div className="min-w-0">
-                              <p className="font-medium text-sm">{row.exercise.name}</p>
+                              <p className="font-medium text-sm">{row.exercise?.name ?? "Free-pick: " + row.te.freePickCriteria}</p>
                               <p className="text-xs text-muted-foreground">
                                 {row.te.setsMin}{row.te.setsMax ? `–${row.te.setsMax}` : ""} sets &times;{" "}
                                 {row.te.repsMin}{row.te.repsMax ? `–${row.te.repsMax}` : ""} reps
@@ -442,7 +444,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
                             </div>
                           </div>
                           <div className="flex items-center shrink-0">
-                          <Button variant="ghost" size="sm" disabled={pending} aria-label={"Edit " + row.exercise.name} onClick={() => handleEditExercise(row.te)}>Edit</Button>
+                          <Button variant="ghost" size="sm" disabled={pending} aria-label={"Edit " + (row.exercise?.name ?? "Free-pick: " + row.te.freePickCriteria)} onClick={() => handleEditExercise(row.te)}>Edit</Button>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -462,7 +464,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
               <section className="space-y-2">
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold text-sm">Accessories</h3>
-                  <Button size="sm" variant="outline" onClick={() => { resetExForm(); setSection("accessory"); setWeightType("rpe"); setAddExOpen(true) }}><Plus className="w-4 h-4" /> Add accessory</Button>
+                  <AccessoryForm key={selectedTemplate.id} templateId={selectedTemplate.id} exercises={exercises} onSaved={async () => { setTemplateExercises(await getTemplateExercises(selectedTemplate.id)) }} />
                 </div>
                 {templateExercises.filter((row) => row.te.section === "accessory").length === 0 && <p className="text-xs text-muted-foreground">Add individual exercises or group them into supersets.</p>}
                 {Array.from(new Set(templateExercises.filter((row) => row.te.section === "accessory").map((row) => row.te.superset ?? ""))).map((group) => (
@@ -470,10 +472,10 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
                     {group && <p className="text-sm font-semibold">Superset: {group} <span className="font-normal text-muted-foreground">- alternate exercises each round</span></p>}
                     {templateExercises.filter((row) => row.te.section === "accessory" && (row.te.superset ?? "") === group).map((row) => (
                       <div key={row.te.id} className="flex items-center justify-between gap-2">
-                        <div><p className="text-sm font-medium">{row.exercise.name}</p><p className="text-xs text-muted-foreground">{row.te.setsMin}{row.te.setsMax ? "-" + row.te.setsMax : ""} sets &times; {row.te.repsMin}{row.te.repsMax ? "-" + row.te.repsMax : ""} reps{row.te.rpeTarget ? " | RPE " + row.te.rpeTarget : ""}</p></div>
+                        <div><p className="text-sm font-medium">{row.exercise?.name ?? "Free-pick: " + row.te.freePickCriteria}</p><p className="text-xs text-muted-foreground">{row.te.setsMin}{row.te.setsMax ? "-" + row.te.setsMax : ""} sets &times; {row.te.repsMin}{row.te.repsMax ? "-" + row.te.repsMax : ""} reps{row.te.rpeTarget ? " | RPE " + row.te.rpeTarget : ""}</p></div>
                         <div className="flex items-center shrink-0">
-                          <Button variant="ghost" size="sm" disabled={pending} aria-label={"Edit " + row.exercise.name} onClick={() => handleEditExercise(row.te)}>Edit</Button>
-                          <Button variant="ghost" size="icon" aria-label={"Remove " + row.exercise.name} onClick={() => handleRemoveExercise(row.te.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                          <Button variant="ghost" size="sm" disabled={pending} aria-label={"Edit " + (row.exercise?.name ?? "Free-pick: " + row.te.freePickCriteria)} onClick={() => handleEditExercise(row.te)}>Edit</Button>
+                          <Button variant="ghost" size="icon" aria-label={"Remove " + (row.exercise?.name ?? "Free-pick: " + row.te.freePickCriteria)} onClick={() => handleRemoveExercise(row.te.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
                         </div>
                       </div>
                     ))}
@@ -605,6 +607,8 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
+              {editingExercise?.freePickCriteria && <div className="space-y-2"><Label htmlFor="edit-criteria">Free-pick criteria</Label><Textarea id="edit-criteria" value={editingExercise.freePickCriteria} onChange={(e) => setEditingExercise({ ...editingExercise, freePickCriteria: e.target.value })} /></div>}
+              {!editingExercise?.freePickCriteria && <>
               <Label>Exercise</Label>
               <div className="flex gap-2">
                 <Select
@@ -625,6 +629,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
                   <Plus className="w-4 h-4" />
                 </Button>
               </div>
+              </>}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -696,7 +701,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
           <DialogFooter>
             <Button variant="outline" disabled={pending} onClick={() => { setAddExOpen(false); resetExForm() }}>Cancel</Button>
             {exerciseError && <p role="alert" className="text-sm text-destructive">{exerciseError}</p>}
-            <Button onClick={handleAddExercise} disabled={pending || !selectedExId || !validPrescription}>{pending ? "Saving..." : editingExercise ? "Save changes" : "Add"}</Button>
+            <Button onClick={handleAddExercise} disabled={pending || (!selectedExId && !editingExercise?.freePickCriteria) || !validPrescription}>{pending ? "Saving..." : editingExercise ? "Save changes" : "Add"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

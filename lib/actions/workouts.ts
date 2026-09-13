@@ -163,7 +163,7 @@ export async function getWorkoutWithDetails(id: number) {
   const exerciseLogs = await db
     .select({ el: exerciseLog, exercise })
     .from(exerciseLog)
-    .innerJoin(exercise, eq(exerciseLog.exerciseId, exercise.id))
+    .leftJoin(exercise, eq(exerciseLog.exerciseId, exercise.id))
     .where(eq(exerciseLog.workoutLogId, id))
     .orderBy(asc(exerciseLog.orderIndex))
 
@@ -247,6 +247,7 @@ export async function updateExerciseLog(
 export async function upsertSetLog(data: {
   exerciseLogId: number
   setNumber: number
+  exerciseName?: string
   isMakeup?: boolean
   reps?: number
   weight?: number
@@ -257,6 +258,16 @@ export async function upsertSetLog(data: {
   const userId = await getUserId()
   if (data.weight != null && (!Number.isFinite(data.weight) || data.weight < 0)) throw new Error("Enter one valid weight in kg.")
   if (data.reps != null && (!Number.isInteger(data.reps) || data.reps < 0)) throw new Error("Enter whole-number reps, zero or greater.")
+
+  const [owned] = await db.select({ el: exerciseLog }).from(exerciseLog)
+    .innerJoin(workoutLog, eq(exerciseLog.workoutLogId, workoutLog.id))
+    .where(and(eq(exerciseLog.id, data.exerciseLogId), eq(workoutLog.userId, userId)))
+  if (!owned) throw new Error("Exercise not found")
+  if (owned.el.exerciseId == null) {
+    if (!data.exerciseName?.trim()) throw new Error("Enter the exercise you chose.")
+    if (data.reps == null || data.weight == null) throw new Error("Enter reps and weight for your free-pick exercise (use 0 kg for bodyweight).")
+    await db.update(exerciseLog).set({ exerciseName: data.exerciseName.trim() }).where(eq(exerciseLog.id, data.exerciseLogId))
+  }
 
   const payload: Record<string, unknown> = {
     exerciseLogId: data.exerciseLogId,
@@ -299,7 +310,7 @@ export async function upsertSetLog(data: {
       .select({ exerciseId: exerciseLog.exerciseId, workoutLogId: exerciseLog.workoutLogId })
       .from(exerciseLog)
       .where(eq(exerciseLog.id, data.exerciseLogId))
-    if (el) {
+    if (el?.exerciseId != null) {
       const [wl] = await db
         .select({ userId: workoutLog.userId })
         .from(workoutLog)
@@ -375,7 +386,7 @@ export async function getWorkoutLogDetail(id: number) {
   const exerciseLogs = await db
     .select({ el: exerciseLog, exercise })
     .from(exerciseLog)
-    .innerJoin(exercise, eq(exerciseLog.exerciseId, exercise.id))
+    .leftJoin(exercise, eq(exerciseLog.exerciseId, exercise.id))
     .where(eq(exerciseLog.workoutLogId, id))
     .orderBy(asc(exerciseLog.orderIndex))
 
@@ -398,7 +409,7 @@ export async function seedWorkoutFromTemplate(workoutLogId: number, templateId: 
   const exercises = await db
     .select({ te: templateExercise, exercise })
     .from(templateExercise)
-    .innerJoin(exercise, eq(templateExercise.exerciseId, exercise.id))
+    .leftJoin(exercise, eq(templateExercise.exerciseId, exercise.id))
     .where(eq(templateExercise.workoutTemplateId, templateId))
     .orderBy(asc(templateExercise.orderIndex))
 
@@ -410,6 +421,8 @@ export async function seedWorkoutFromTemplate(workoutLogId: number, templateId: 
       .values({
         workoutLogId,
         exerciseId: te.exerciseId,
+        freePickCriteria: te.freePickCriteria,
+        superset: te.superset,
         orderIndex: te.orderIndex,
       })
       .returning()

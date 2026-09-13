@@ -113,6 +113,7 @@ export async function duplicateProgram(id: number) {
       await db.insert(templateExercise).values({
         workoutTemplateId: newTemplate.id,
         exerciseId: ex.exerciseId,
+      freePickCriteria: ex.freePickCriteria,
         orderIndex: ex.orderIndex,
         section: ex.section,
         superset: ex.superset,
@@ -246,6 +247,7 @@ export async function duplicateWorkoutTemplate(data: {
     await db.insert(templateExercise).values({
       workoutTemplateId: newTemplate.id,
       exerciseId: ex.exerciseId,
+        freePickCriteria: ex.freePickCriteria,
       orderIndex: ex.orderIndex,
       section: ex.section,
       superset: ex.superset,
@@ -331,14 +333,15 @@ export async function getTemplateExercises(workoutTemplateId: number) {
   return db
     .select({ te: templateExercise, exercise })
     .from(templateExercise)
-    .innerJoin(exercise, eq(templateExercise.exerciseId, exercise.id))
+    .leftJoin(exercise, eq(templateExercise.exerciseId, exercise.id))
     .where(eq(templateExercise.workoutTemplateId, workoutTemplateId))
     .orderBy(asc(templateExercise.orderIndex))
 }
 
 export async function addTemplateExercise(data: {
   workoutTemplateId: number
-  exerciseId: number
+  exerciseId: number | null
+  freePickCriteria?: string | null
   orderIndex?: number
   setsMin: number
   setsMax?: number
@@ -355,6 +358,7 @@ export async function addTemplateExercise(data: {
   notes?: string
 }) {
   await getUserId()
+  validateFreePick(data)
   for (const [min, max] of [[data.setsMin, data.setsMax], [data.repsMin, data.repsMax], [data.totalRepsMin, data.totalRepsMax]]) {
     if ((min != null && (!Number.isInteger(min) || min < 1)) || (max != null && (min == null || !Number.isInteger(max) || max < min))) throw new Error("Enter valid, ordered set and rep ranges.")
   }
@@ -378,7 +382,8 @@ export async function addTemplateExercise(data: {
 export async function updateTemplateExercise(
   id: number,
   data: Partial<{
-    exerciseId: number
+    exerciseId: number | null
+    freePickCriteria?: string | null
     section: string
     superset: string | null
     totalRepsMin: number | null
@@ -403,6 +408,7 @@ export async function updateTemplateExercise(
     .where(and(eq(templateExercise.id, id), eq(program.userId, userId)))
   if (!existing) throw new Error("Exercise not found")
   const next = { ...existing.te, ...data }
+  validateFreePick(next)
   for (const [min, max] of [[next.setsMin, next.setsMax], [next.repsMin, next.repsMax], [next.totalRepsMin, next.totalRepsMax]]) {
     if ((min != null && (!Number.isInteger(min) || min < 1)) || (max != null && (min == null || !Number.isInteger(max) || max < min))) throw new Error("Enter valid, ordered set and rep ranges.")
   }
@@ -428,4 +434,38 @@ export async function updateTemplateExercise(
 export async function deleteTemplateExercise(id: number) {
   await getUserId()
   await db.delete(templateExercise).where(eq(templateExercise.id, id))
+}
+
+function validateFreePick(data: { exerciseId: number | null; freePickCriteria?: string | null; section?: string; superset?: string | null; weightType: string }) {
+  if (data.exerciseId == null && (!data.freePickCriteria?.trim() || data.section !== "accessory" || !data.superset?.trim() || data.weightType === "pb_percent")) throw new Error("Free-pick exercises need written criteria and an accessory superset, without PB loading.")
+  if (data.exerciseId != null && (!Number.isInteger(data.exerciseId) || data.exerciseId < 1)) throw new Error("Choose a valid exercise.")
+  if (data.exerciseId != null && data.freePickCriteria) throw new Error("Choose a library exercise or free-pick criteria.")
+}
+
+export async function addAccessoryGroup(data: {
+  workoutTemplateId: number
+  superset?: string
+  exercises: { exerciseId: number | null; freePickCriteria?: string; setsMin: number; repsMin: number; rpeTarget?: number }[]
+}) {
+  const userId = await getUserId()
+  if (data.superset !== undefined && !data.superset.trim()) throw new Error("Enter a superset name.")
+  if (!data.exercises.length || (data.superset && data.exercises.length < 2) || (!data.superset && data.exercises.length !== 1)) throw new Error("A superset needs at least two exercises.")
+  const rows = data.exercises.map((entry) => {
+    const row = { ...entry, section: "accessory", superset: data.superset?.trim() || null, weightType: "rpe" }
+    validateFreePick(row)
+    if (![entry.setsMin, entry.repsMin].every((n) => Number.isInteger(n) && n > 0)) throw new Error("Enter positive whole numbers for sets and reps.")
+    if (entry.rpeTarget != null && (!Number.isFinite(entry.rpeTarget) || entry.rpeTarget < 1 || entry.rpeTarget > 10)) throw new Error("RPE must be between 1 and 10.")
+    return { ...row, freePickCriteria: entry.freePickCriteria?.trim() || null, rpeTarget: entry.rpeTarget == null ? null : String(entry.rpeTarget) }
+  })
+  await db.transaction(async (tx) => {
+    const [owner] = await tx.select({ id: workoutTemplate.id }).from(workoutTemplate)
+      .innerJoin(program, eq(workoutTemplate.programId, program.id))
+      .where(and(eq(workoutTemplate.id, data.workoutTemplateId), eq(program.userId, userId))).for("update")
+    if (!owner) throw new Error("Workout not found")
+    const existing = await tx.select().from(templateExercise).where(eq(templateExercise.workoutTemplateId, data.workoutTemplateId))
+    if (data.superset && existing.some((row) => row.superset === data.superset?.trim())) throw new Error("Choose a different superset name; this name already exists.")
+    const offset = Math.max(-1, ...existing.map((row) => row.orderIndex)) + 1
+    await tx.insert(templateExercise).values(rows.map((row, i) => ({ ...row, workoutTemplateId: data.workoutTemplateId, orderIndex: offset + i })))
+  })
+  revalidatePath("/programs")
 }
