@@ -2,6 +2,7 @@
 import { addExercise } from "@/lib/actions/exercises"
 import {
   addExerciseLog,
+  removeWorkoutSet,
   updateExerciseLog,
   updateWorkoutLog,
   upsertSetLog,
@@ -70,7 +71,7 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
 
   function numSets(row: ExerciseLogRow) {
     // Use number from sets if saved, else derive from template (default 3)
-    return Math.max(initialDetails.prescriptionMap[row.el.id]?.setsMin ?? 3, workingSets[row.el.id] ?? 0, ...getSets(row.el.id).filter((s) => !s.isMakeup).map((s) => s.setNumber))
+    return Math.max(workingSets[row.el.id] ?? initialDetails.prescriptionMap[row.el.id]?.setsMin ?? 3, ...getSets(row.el.id).filter((s) => !s.isMakeup).map((s) => s.setNumber))
   }
 
   const [checkInStatus, setCheckInStatus] = useState("")
@@ -104,6 +105,60 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
   function defaultWeight(elId: number, setNum: number) {
     const hint = suggestedWeight(elId, setNum)
     return hint.includes("-") ? "" : hint
+  }
+
+  function addSet(elId: number) {
+    const row = exerciseLogs.find((row) => row.el.id === elId)
+    if (!row) return
+    const count = numSets(row)
+    const makeupCount = Math.max(makeupSets[elId] ?? 0, ...getSets(elId).filter((s) => s.isMakeup).map((s) => s.setNumber))
+    const lastNumber = makeupCount || count
+    const lastKey = setKey(elId, lastNumber, makeupCount > 0)
+    const saved = getSets(elId).find((s) => s.setNumber === lastNumber && s.isMakeup === (makeupCount > 0))
+    const weight = setWeight[lastKey] ?? saved?.weight ?? defaultWeight(elId, lastNumber)
+    const reps = setReps[lastKey] ?? saved?.reps?.toString() ?? initialDetails.prescriptionMap[elId]?.repsMin.toString() ?? ""
+    if (lastNumber > 0 && weight.trim() !== "" && reps.trim() !== "") {
+      const key = setKey(elId, count + 1)
+      setSetWeight((prev) => ({ ...prev, [key]: weight }))
+      setSetReps((prev) => ({ ...prev, [key]: reps }))
+    }
+    setWorkingSets((prev) => ({ ...prev, [elId]: count + 1 }))
+  }
+
+  function removeSet(elId: number, setNum: number, isMakeup: boolean) {
+    const row = exerciseLogs.find((row) => row.el.id === elId)
+    if (!row) return
+    const saved = getSets(elId).find((s) => s.setNumber === setNum && s.isMakeup === isMakeup)
+    if (saved && !window.confirm("This set is marked as " + (saved.missed ? "Miss" : "Made") + ". Remove this completed set?")) return
+    const count = isMakeup
+      ? Math.max(makeupSets[elId] ?? 0, ...getSets(elId).filter((s) => s.isMakeup).map((s) => s.setNumber))
+      : numSets(row)
+    startTransition(async () => {
+      setSaveError(null)
+      try {
+        await removeWorkoutSet(elId, setNum, isMakeup)
+        setSetsMap((prev) => ({ ...prev, [elId]: (prev[elId] ?? [])
+          .filter((s) => !(s.isMakeup === isMakeup && s.setNumber === setNum))
+          .map((s) => s.isMakeup === isMakeup && s.setNumber > setNum ? { ...s, setNumber: s.setNumber - 1 } : s) }))
+        const shift = (prev: Record<string, string>) => {
+          const next = { ...prev }
+          for (let n = setNum; n <= count; n++) {
+            const key = setKey(elId, n, isMakeup)
+            const following = prev[setKey(elId, n + 1, isMakeup)]
+            if (n < count && following !== undefined) next[key] = following
+            else delete next[key]
+          }
+          return next
+        }
+        setSetWeight(shift)
+        setSetReps(shift)
+        setMissReason(shift)
+        if (isMakeup) setMakeupSets((prev) => ({ ...prev, [elId]: count - 1 }))
+        else setWorkingSets((prev) => ({ ...prev, [elId]: count - 1 }))
+      } catch (error) {
+        setSaveError(error instanceof Error ? error.message : "Could not remove the set. Please try again.")
+      }
+    })
   }
 
   function saveSet(elId: number, setNum: number, isMakeup = false, missed = false, addMakeup = false) {
@@ -266,7 +321,8 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
     setSetReps,
     setWeight,
     setSetWeight,
-    setWorkingSets,
+    addSet,
+    removeSet,
     saveError,
     missReason,
     setMissReason,

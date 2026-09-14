@@ -53,7 +53,8 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
     setSetReps,
     setWeight,
     setSetWeight,
-    setWorkingSets,
+    addSet,
+    removeSet,
     saveError,
     missReason,
     setMissReason,
@@ -294,33 +295,14 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
         setSetReps={setSetReps}
         saveSet={saveSet}
         setMissModalKey={setMissModalKey}
-        setWorkingSets={setWorkingSets}
+        addSet={addSet}
+        removeSet={removeSet}
         setExRpe={setExRpe}
         exRpe={exRpe}
         exNotes={exNotes}
         setExNotes={setExNotes}
         saveExerciseNotes={saveExerciseNotes}
       />
-
-      {exerciseLogs.some((row) => initialDetails.prescriptionMap[row.el.id]?.section === "accessory") && <section className="space-y-2">
-        <h2 className="font-semibold">Accessories</h2>
-        {Array.from(new Set(exerciseLogs.filter((row) => initialDetails.prescriptionMap[row.el.id]?.section === "accessory").map((row) => initialDetails.prescriptionMap[row.el.id].superset ?? ""))).map((group) => <div key={group} className="rounded-lg border p-3 space-y-2">
-          {group && <p className="text-sm font-medium">Superset: {group} - alternate exercises each round</p>}
-          {exerciseLogs.map((row, index) => {
-            const prescription = initialDetails.prescriptionMap[row.el.id]
-            if (prescription?.section !== "accessory" || (prescription.superset ?? "") !== group) return null
-            return <button key={row.el.id} type="button" onClick={() => { saveExerciseNotes(currentRow); setCurrentExIdx(index) }} className={cn("block w-full rounded-md p-2 text-left hover:bg-accent", index === currentExIdx && "bg-accent")}>
-              <p className="text-sm font-medium">{row.exercise?.name ?? chosenNames[row.el.id] ?? row.el.exerciseName ?? "Free-pick exercise"}</p>
-              <p className="text-xs text-muted-foreground">{range(prescription.setsMin, prescription.setsMax)} sets &times; {range(prescription.repsMin, prescription.repsMax)} reps{prescription.rpeTarget ? " | RPE " + prescription.rpeTarget : ""} | {getSets(row.el.id).filter((set) => !set.missed).length} sets saved</p>
-            </button>
-          })}
-        </div>)}
-      </section>}
-
-      {/* Functional Fitness reference */}
-      {functionalBlocks.length > 0 && (
-        <FunctionalWorkoutCard blocks={functionalBlocks}>{functionalNotesField}</FunctionalWorkoutCard>
-      )}
 
       {/* Navigation */}
       <div className="flex justify-between gap-3">
@@ -348,6 +330,26 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
           </Button>
         )}
       </div>
+
+      {exerciseLogs.some((row) => initialDetails.prescriptionMap[row.el.id]?.section === "accessory") && <section className="space-y-2">
+        <h2 className="font-semibold">Accessories</h2>
+        {Array.from(new Set(exerciseLogs.filter((row) => initialDetails.prescriptionMap[row.el.id]?.section === "accessory").map((row) => initialDetails.prescriptionMap[row.el.id].superset ?? ""))).map((group) => <div key={group} className="rounded-lg border p-3 space-y-2">
+          {group && <p className="text-sm font-medium">Superset: {group} - alternate exercises each round</p>}
+          {exerciseLogs.map((row, index) => {
+            const prescription = initialDetails.prescriptionMap[row.el.id]
+            if (prescription?.section !== "accessory" || (prescription.superset ?? "") !== group) return null
+            return <button key={row.el.id} type="button" onClick={() => { saveExerciseNotes(currentRow); setCurrentExIdx(index) }} className={cn("block w-full rounded-md p-2 text-left hover:bg-accent", index === currentExIdx && "bg-accent")}>
+              <p className="text-sm font-medium">{row.exercise?.name ?? chosenNames[row.el.id] ?? row.el.exerciseName ?? "Free-pick exercise"}</p>
+              <p className="text-xs text-muted-foreground">{range(prescription.setsMin, prescription.setsMax)} sets &times; {range(prescription.repsMin, prescription.repsMax)} reps{prescription.rpeTarget ? " | RPE " + prescription.rpeTarget : ""} | {getSets(row.el.id).filter((set) => !set.missed).length} sets saved</p>
+            </button>
+          })}
+        </div>)}
+      </section>}
+
+      {/* Functional Fitness reference */}
+      {functionalBlocks.length > 0 && (
+        <FunctionalWorkoutCard blocks={functionalBlocks}>{functionalNotesField}</FunctionalWorkoutCard>
+      )}
 
       {/* Miss reason modal */}
       <MissedSetDialog

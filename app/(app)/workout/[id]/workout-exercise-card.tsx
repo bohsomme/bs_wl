@@ -44,7 +44,8 @@ interface WorkoutExerciseCardProps {
   setSetReps: Dispatch<SetStateAction<Record<string, string>>>
   saveSet: (elId: number, setNum: number, isMakeup?: boolean, missed?: boolean, addMakeup?: boolean) => void
   setMissModalKey: Dispatch<SetStateAction<string | null>>
-  setWorkingSets: Dispatch<SetStateAction<Record<number, number>>>
+  addSet: (elId: number) => void
+  removeSet: (elId: number, setNum: number, isMakeup: boolean) => void
   setExRpe: Dispatch<SetStateAction<Record<number, string>>>
   exRpe: Record<number, string>
   exNotes: Record<number, string>
@@ -77,7 +78,8 @@ export function WorkoutExerciseCard({
   setSetReps,
   saveSet,
   setMissModalKey,
-  setWorkingSets,
+  addSet,
+  removeSet,
   setExRpe,
   exRpe,
   exNotes,
@@ -126,6 +128,9 @@ export function WorkoutExerciseCard({
             </span>
           })}
         </div>}
+        {te && totalSets > (te.setsMax ?? te.setsMin) && <p role="status" className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+          Sets: {totalSets} / {range(te.setsMin, te.setsMax)} prescribed (+{totalSets - (te.setsMax ?? te.setsMin)} extra)
+        </p>}
         {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
         <div className="space-y-2">
           {Array.from({ length: totalSets + extraMakeupCount }, (_, i) => {
@@ -140,6 +145,8 @@ export function WorkoutExerciseCard({
                   {te?.weightType === "pb_percent" && percentageAt(te, n) && (
                     <span className="rounded-md border bg-muted px-2 py-1 text-xs font-medium">Target: {formatTarget(percentageAt(te, n)!)}% of PB{suggestedWeight(elId, n) ? " | " + suggestedWeight(elId, n) + " kg" : ""}</span>
                   )}
+                  <Button variant="ghost" size="sm" disabled={pending} aria-label={"Remove " + (isMakeup ? "makeup set " : "set ") + n}
+                    onClick={() => removeSet(elId, n, isMakeup)}>Remove</Button>
                   {saved && <Badge variant={saved.missed ? "destructive" : "secondary"}>{saved.missed ? "Miss" : "Made"}</Badge>}
                 </div>
                 <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.75fr)_auto_auto] items-end gap-1.5">
@@ -163,11 +170,9 @@ export function WorkoutExerciseCard({
               </div>
             )
           })}
-          {(currentRow.el.exerciseId == null || (te?.setsMax != null && totalSets < te.setsMax)) && (
-            <Button variant="outline" size="sm" onClick={() => setWorkingSets((prev) => ({ ...prev, [elId]: totalSets + 1 }))}>
-              <Plus className="w-4 h-4" /> Add set ({totalSets}{te?.setsMax ? `/${te.setsMax}` : ""})
-            </Button>
-          )}
+          <Button variant="outline" size="sm" disabled={pending} onClick={() => addSet(elId)}>
+            <Plus className="w-4 h-4" /> Add set ({totalSets})
+          </Button>
         </div>
 
         <Separator />

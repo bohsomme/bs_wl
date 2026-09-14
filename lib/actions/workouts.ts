@@ -13,7 +13,7 @@ import {
   program,
   personalBest,
 } from "@/lib/db/schema"
-import { asc, desc, eq, and, gte } from "drizzle-orm"
+import { asc, desc, eq, and, gte, gt, sql } from "drizzle-orm"
 import { getUserId } from "./auth"
 import { revalidatePath } from "next/cache"
 
@@ -353,6 +353,22 @@ export async function upsertSetLog(data: {
   }
 
   return savedSet
+}
+
+export async function removeWorkoutSet(exerciseLogId: number, setNumber: number, isMakeup: boolean) {
+  const userId = await getUserId()
+  if (!Number.isInteger(setNumber) || setNumber < 1) throw new Error("Invalid set number")
+  await db.transaction(async (tx) => {
+    const [owned] = await tx.select({ id: exerciseLog.id }).from(exerciseLog)
+      .innerJoin(workoutLog, eq(exerciseLog.workoutLogId, workoutLog.id))
+      .where(and(eq(exerciseLog.id, exerciseLogId), eq(workoutLog.userId, userId)))
+    if (!owned) throw new Error("Exercise not found")
+    await tx.delete(setLog).where(and(eq(setLog.exerciseLogId, exerciseLogId), eq(setLog.setNumber, setNumber), eq(setLog.isMakeup, isMakeup)))
+    await tx.update(setLog).set({ setNumber: sql`${setLog.setNumber} - 1` })
+      .where(and(eq(setLog.exerciseLogId, exerciseLogId), gt(setLog.setNumber, setNumber), eq(setLog.isMakeup, isMakeup)))
+  })
+  revalidatePath("/log")
+  revalidatePath("/")
 }
 
 export async function getSetLogs(exerciseLogId: number) {
