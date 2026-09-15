@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { BookOpen, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
+import { DeleteWorkoutButton } from "./delete-workout-button"
 
 export default async function LogPage({
   searchParams,
@@ -83,7 +84,8 @@ export default async function LogPage({
       ) : (
         <div className="space-y-2">
           {logs.map((log) => (
-            <Link key={log.id} href={`/log/${log.id}`} className="block">
+            <div key={log.id} className="flex items-center gap-2">
+            <Link href={`/log/${log.id}`} className="block min-w-0 flex-1">
               <Card className="hover:bg-accent/40 transition-colors cursor-pointer">
                 <CardContent className="flex items-center justify-between py-4 gap-4">
                   <div className="flex items-center gap-4 min-w-0">
@@ -120,6 +122,8 @@ export default async function LogPage({
                 </CardContent>
               </Card>
             </Link>
+            <DeleteWorkoutButton id={log.id} name={log.name} returnHref={logs.length > 1 ? `/log?program=${selected.key}` : "/log"} />
+            </div>
           ))}
         </div>
       )}

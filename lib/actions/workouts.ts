@@ -13,7 +13,7 @@ import {
   program,
   personalBest,
 } from "@/lib/db/schema"
-import { asc, desc, eq, and, gte, gt, sql } from "drizzle-orm"
+import { asc, desc, eq, and, gte, gt, sql, inArray } from "drizzle-orm"
 import { getUserId } from "./auth"
 import { revalidatePath } from "next/cache"
 
@@ -141,6 +141,29 @@ export async function updateWorkoutLog(
   revalidatePath(`/workout/${id}`)
   revalidatePath("/dashboard")
   return log
+}
+
+export async function deleteWorkoutLog(id: number) {
+  const userId = await getUserId()
+  if (!Number.isSafeInteger(id) || id <= 0) throw new Error("Invalid workout ID")
+
+  await db.transaction(async (tx) => {
+    const [owned] = await tx.select({ id: workoutLog.id }).from(workoutLog)
+      .where(and(eq(workoutLog.id, id), eq(workoutLog.userId, userId)))
+      .for("update")
+    if (!owned) throw new Error("Workout not found")
+
+    const exercises = tx.select({ id: exerciseLog.id }).from(exerciseLog)
+      .where(eq(exerciseLog.workoutLogId, id))
+    await tx.delete(setLog).where(inArray(setLog.exerciseLogId, exercises))
+    await tx.delete(exerciseLog).where(eq(exerciseLog.workoutLogId, id))
+    await tx.delete(workoutLog).where(and(eq(workoutLog.id, id), eq(workoutLog.userId, userId)))
+  })
+
+  revalidatePath("/log")
+  revalidatePath(`/log/${id}`)
+  revalidatePath(`/workout/${id}`)
+  revalidatePath("/dashboard")
 }
 
 export async function getActiveWorkout() {

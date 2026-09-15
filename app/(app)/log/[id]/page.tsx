@@ -6,6 +6,7 @@ import { ChevronLeft } from "lucide-react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ExerciseLogCard } from "./exercise-log-card"
+import { DeleteWorkoutButton } from "../delete-workout-button"
 
 interface Props {
   params: Promise<{ id: string }>
@@ -28,7 +29,7 @@ export default async function LogDetailPage({ params }: Props) {
         <Button render={<Link href={log.status === "completed" ? `/log?program=${log.programId ?? "unassigned"}` : "/log"} />} variant="ghost" size="icon" aria-label="Back to workout log">
           <ChevronLeft className="w-5 h-5" />
         </Button>
-        <div>
+        <div className="min-w-0 flex-1">
           <h1 className="text-xl font-bold">{log.name}</h1>
           <p className="text-sm text-muted-foreground">
             {log.completedAt
@@ -41,6 +42,7 @@ export default async function LogDetailPage({ params }: Props) {
               : "In progress"}
           </p>
         </div>
+        <DeleteWorkoutButton id={log.id} name={log.name} />
       </div>
 
       {/* Session summary */}
