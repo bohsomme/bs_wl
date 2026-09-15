@@ -89,7 +89,7 @@ export async function startWorkout(data: {
     .insert(workoutLog)
     .values({ ...data, userId })
     .returning()
-  revalidatePath("/")
+  revalidatePath("/dashboard")
   return log
 }
 
@@ -137,7 +137,9 @@ export async function updateWorkoutLog(
     .where(and(eq(workoutLog.id, id), eq(workoutLog.userId, userId)))
     .returning()
   revalidatePath("/log")
-  revalidatePath("/")
+  revalidatePath(`/log/${id}`)
+  revalidatePath(`/workout/${id}`)
+  revalidatePath("/dashboard")
   return log
 }
 
@@ -368,7 +370,7 @@ export async function removeWorkoutSet(exerciseLogId: number, setNumber: number,
       .where(and(eq(setLog.exerciseLogId, exerciseLogId), gt(setLog.setNumber, setNumber), eq(setLog.isMakeup, isMakeup)))
   })
   revalidatePath("/log")
-  revalidatePath("/")
+  revalidatePath("/dashboard")
 }
 
 export async function getSetLogs(exerciseLogId: number) {

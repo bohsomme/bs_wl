@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import { getWorkoutWithDetails } from "@/lib/actions/workouts"
 import { getExercises, getPersonalBests } from "@/lib/actions/exercises"
 import { WorkoutSession } from "./workout-session"
@@ -20,6 +20,7 @@ export default async function WorkoutPage({ params }: Props) {
   ])
 
   if (!details) notFound()
+  if (details.log.status === "completed") redirect(`/log/${workoutId}`)
 
   const pbWeights: Record<number, string> = {}
   for (const { pb } of personalBests.sort((a, b) =>
