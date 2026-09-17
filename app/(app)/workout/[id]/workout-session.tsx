@@ -227,8 +227,8 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
   const totalSets = numSets(currentRow)
   const extraMakeupCount = Math.max(makeupSets[elId] ?? 0, ...getSets(elId).filter((s) => s.isMakeup).map((s) => s.setNumber))
   const range = (min: number, max: number | null) => max != null && max !== min ? min + "-" + max : String(min)
-  const successfulSets = getSets(elId).filter((set) => !set.missed)
-  const completedReps = successfulSets.reduce((sum, set) => sum + (set.reps ?? 0), 0)
+  const completedSets = getSets(elId).filter((set) => !set.isMakeup)
+  const completedReps = getSets(elId).reduce((sum, set) => sum + (set.reps ?? 0), 0)
   const weightHint = te?.weightType === "pb_percent"
     ? (te.percentages?.map(formatTarget).join(", ") ?? te.weightValue ?? "") + "% of PB"
     : te?.weightType === "rpe" ? "RPE " + (te.rpeTarget ?? "not set") : "kg"
@@ -279,7 +279,7 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
         skipExercise={skipExercise}
         range={range}
         weightHint={weightHint}
-        successfulSets={successfulSets}
+        completedSets={completedSets}
         completedReps={completedReps}
         saveError={saveError}
         totalSets={totalSets}
@@ -340,7 +340,7 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
             if (prescription?.section !== "accessory" || (prescription.superset ?? "") !== group) return null
             return <button key={row.el.id} type="button" onClick={() => { saveExerciseNotes(currentRow); setCurrentExIdx(index) }} className={cn("block w-full rounded-md p-2 text-left hover:bg-accent", index === currentExIdx && "bg-accent")}>
               <p className="text-sm font-medium">{row.exercise?.name ?? chosenNames[row.el.id] ?? row.el.exerciseName ?? "Free-pick exercise"}</p>
-              <p className="text-xs text-muted-foreground">{range(prescription.setsMin, prescription.setsMax)} sets &times; {range(prescription.repsMin, prescription.repsMax)} reps{prescription.rpeTarget ? " | RPE " + prescription.rpeTarget : ""} | {getSets(row.el.id).filter((set) => !set.missed).length} sets saved</p>
+              <p className="text-xs text-muted-foreground">{range(prescription.setsMin, prescription.setsMax)} sets &times; {range(prescription.repsMin, prescription.repsMax)} reps{prescription.rpeTarget ? " | RPE " + prescription.rpeTarget : ""} | {getSets(row.el.id).filter((set) => !set.isMakeup).length} sets saved</p>
             </button>
           })}
         </div>)}

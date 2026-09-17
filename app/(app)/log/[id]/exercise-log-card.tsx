@@ -7,6 +7,17 @@ import { CheckCircle2, NotebookPen, XCircle } from "lucide-react"
 export function ExerciseLogCard({ el, exercise, sets }: { el: ExerciseLog; exercise: Exercise | null; sets: SetLog[] }) {
   const workingSets = sets.filter((s) => !s.isMakeup)
   const makeupSets = sets.filter((s) => s.isMakeup)
+  let nextMakeup = 0
+  const displayedSets = workingSets.flatMap((set) => {
+    const rows = [{ set, isMakeup: false, makeupNumber: 0 }]
+    if (set.missed && nextMakeup < makeupSets.length) {
+      rows.push({ set: makeupSets[nextMakeup], isMakeup: true, makeupNumber: ++nextMakeup })
+    }
+    return rows
+  })
+  while (nextMakeup < makeupSets.length) {
+    displayedSets.push({ set: makeupSets[nextMakeup], isMakeup: true, makeupNumber: ++nextMakeup })
+  }
   return (<Card key={el.id} className={el.skipped ? "opacity-60" : ""}>
     <CardHeader className="pb-2">
       <div className="flex items-center justify-between gap-2">
@@ -32,16 +43,18 @@ export function ExerciseLogCard({ el, exercise, sets }: { el: ExerciseLog; exerc
               <span className="col-span-3">Reps</span>
               <span className="col-span-4">Status</span>
             </div>
-            {workingSets.map((s) => (
+            {displayedSets.map(({ set: s, isMakeup, makeupNumber }) => (
               <div
                 key={s.id}
-                className={`grid grid-cols-12 items-center gap-2 px-1 py-1 rounded text-sm ${s.missed ? "bg-destructive/10" : ""}`}
+                className={`grid grid-cols-12 items-center gap-2 px-1 py-1 rounded text-sm ${isMakeup ? "bg-primary/5" : s.missed ? "bg-destructive/10" : ""}`}
               >
-                <span className="col-span-1 text-muted-foreground">{s.setNumber}</span>
+                <span className={isMakeup ? "col-span-1 text-primary text-xs font-bold" : "col-span-1 text-muted-foreground"}>{isMakeup ? `+${makeupNumber}` : s.setNumber}</span>
                 <span className="col-span-4">{s.weight ? `${s.weight} kg` : "—"}</span>
                 <span className="col-span-3">{s.reps ?? "—"}</span>
                 <span className="col-span-4">
-                  {s.missed ? (
+                  {isMakeup ? (
+                    <Badge className="text-xs py-0">Makeup</Badge>
+                  ) : s.missed ? (
                     <div className="flex items-center gap-1">
                       <XCircle className="w-3.5 h-3.5 text-destructive" />
                       <span className="text-xs text-destructive">Miss</span>
@@ -49,16 +62,6 @@ export function ExerciseLogCard({ el, exercise, sets }: { el: ExerciseLog; exerc
                   ) : (
                     <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
                   )}
-                </span>
-              </div>
-            ))}
-            {makeupSets.map((s, i) => (
-              <div key={s.id} className="grid grid-cols-12 items-center gap-2 px-1 py-1 rounded text-sm bg-primary/5">
-                <span className="col-span-1 text-primary text-xs font-bold">+{i + 1}</span>
-                <span className="col-span-4">{s.weight ? `${s.weight} kg` : "—"}</span>
-                <span className="col-span-3">{s.reps ?? "—"}</span>
-                <span className="col-span-4">
-                  <Badge className="text-xs py-0">Makeup</Badge>
                 </span>
               </div>
             ))}

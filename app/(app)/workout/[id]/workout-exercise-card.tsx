@@ -28,7 +28,7 @@ interface WorkoutExerciseCardProps {
   skipExercise: (row: ExerciseLogRow) => Promise<void>
   range: (min: number, max: number | null) => string
   weightHint: string
-  successfulSets: SetLog[]
+  completedSets: SetLog[]
   completedReps: number
   saveError: string | null
   totalSets: number
@@ -62,7 +62,7 @@ export function WorkoutExerciseCard({
   skipExercise,
   range,
   weightHint,
-  successfulSets,
+  completedSets,
   completedReps,
   saveError,
   totalSets,
@@ -120,7 +120,7 @@ export function WorkoutExerciseCard({
           {te.weightType === "fixed" && te.weightValue != null ? " - " + Number(te.weightValue) + " kg" : " - " + weightHint}
         </p>}
         {te && <div className="flex flex-wrap gap-2" aria-live="polite">
-          {[{ label: "Sets", value: successfulSets.filter((set) => !set.isMakeup).length, min: te.setsMin, max: te.setsMax },
+          {[{ label: "Sets", value: completedSets.length, min: te.setsMin, max: te.setsMax },
           ...(te.totalRepsMin == null ? [] : [{ label: "Total reps", value: completedReps, min: te.totalRepsMin, max: te.totalRepsMax }])].map((target) => {
             const status = rangeStatus(target.value, target.min, target.max)
             return <span key={target.label} className={cn("rounded-md border px-2 py-1 text-xs font-medium", status === "Within" ? "bg-green-500/10 text-green-700 dark:text-green-400" : status === "Above" ? "bg-red-500/10 text-red-700 dark:text-red-400" : "bg-amber-500/10 text-amber-700 dark:text-amber-400")}>
@@ -133,11 +133,19 @@ export function WorkoutExerciseCard({
         </p>}
         {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
         <div className="space-y-2">
-          {Array.from({ length: totalSets + extraMakeupCount }, (_, i) => {
-            const isMakeup = i >= totalSets
-            const n = isMakeup ? i - totalSets + 1 : i + 1
+          {(() => {
+            const savedSets = getSets(elId)
+            let nextMakeup = 1
+            const rows: { isMakeup: boolean; n: number }[] = []
+            for (let n = 1; n <= totalSets; n++) {
+              rows.push({ isMakeup: false, n })
+              const workingSet = savedSets.find((set) => !set.isMakeup && set.setNumber === n)
+              if (workingSet?.missed && nextMakeup <= extraMakeupCount) rows.push({ isMakeup: true, n: nextMakeup++ })
+            }
+            while (nextMakeup <= extraMakeupCount) rows.push({ isMakeup: true, n: nextMakeup++ })
+            return rows.map(({ isMakeup, n }) => {
             const k = setKey(elId, n, isMakeup)
-            const saved = getSets(elId).find((s) => s.setNumber === n && s.isMakeup === isMakeup)
+            const saved = savedSets.find((s) => s.setNumber === n && s.isMakeup === isMakeup)
             return (
               <div key={k} className={cn("rounded-lg border p-2 space-y-2", saved ? saved.missed ? "border-destructive/40 bg-destructive/5" : "border-primary/40 bg-primary/5" : "border-border")}>
                 <div className="flex items-center justify-between">
@@ -169,7 +177,7 @@ export function WorkoutExerciseCard({
                 </div>
               </div>
             )
-          })}
+          })})()}
           <Button variant="outline" size="sm" disabled={pending} onClick={() => addSet(elId)}>
             <Plus className="w-4 h-4" /> Add set ({totalSets})
           </Button>
