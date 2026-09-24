@@ -70,8 +70,8 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
   }
 
   function numSets(row: ExerciseLogRow) {
-    // Use number from sets if saved, else derive from template (default 3)
-    return Math.max(workingSets[row.el.id] ?? initialDetails.prescriptionMap[row.el.id]?.setsMin ?? 3, ...getSets(row.el.id).filter((s) => !s.isMakeup).map((s) => s.setNumber))
+    // Use number from sets if saved, else derive from template (one blank set for unplanned exercises)
+    return Math.max(workingSets[row.el.id] ?? initialDetails.prescriptionMap[row.el.id]?.setsMin ?? 1, ...getSets(row.el.id).filter((s) => !s.isMakeup).map((s) => s.setNumber))
   }
 
   const [checkInStatus, setCheckInStatus] = useState("")
@@ -193,16 +193,19 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
           ]
         }))
         if (missed) setMissModalKey(null)
-        if (addMakeup) addMakeupSet(elId)
+        if (addMakeup) addMakeupSet(elId, reps, weight)
       } catch (error) {
         setSaveError(error instanceof Error ? error.message : "Could not save the set. Please try again.")
       }
     })
   }
 
-  function addMakeupSet(elId: number) {
-    const count = Math.max(0, ...getSets(elId).filter((s) => s.isMakeup).map((s) => s.setNumber))
-    setMakeupSets((prev) => ({ ...prev, [elId]: Math.max(prev[elId] ?? 0, count) + 1 }))
+  function addMakeupSet(elId: number, reps: string, weight: string) {
+    const count = Math.max(makeupSets[elId] ?? 0, ...getSets(elId).filter((s) => s.isMakeup).map((s) => s.setNumber))
+    const key = setKey(elId, count + 1, true)
+    setSetReps((prev) => ({ ...prev, [key]: reps }))
+    setSetWeight((prev) => ({ ...prev, [key]: weight }))
+    setMakeupSets((prev) => ({ ...prev, [elId]: count + 1 }))
   }
 
   async function skipExercise(row: ExerciseLogRow) {
@@ -237,16 +240,21 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
   async function handleAddExercise() {
     if (!selectedAddExId) return
     startTransition(async () => {
+      try {
+      setSaveError(null)
       const el = await addExerciseLog({
         workoutLogId: log.id,
         exerciseId: selectedAddExId,
-        orderIndex: exerciseLogs.length,
+        orderIndex: Math.max(-1, ...exerciseLogs.map((row) => row.el.orderIndex), ...Object.values(initialDetails.prescriptionMap).map((te) => te.orderIndex)) + 1,
       })
       const ex = localExercises.find((e) => e.id === selectedAddExId)!
-      setExerciseLogs((prev) => [...prev, { el: el as any, exercise: ex }])
+      setExerciseLogs((prev) => [...prev, { el, exercise: ex }])
       setSetsMap((prev) => ({ ...prev, [el.id]: [] }))
+      setCurrentExIdx(exerciseLogs.length)
+      setPhase("exercises")
       setAddExOpen(false)
       setSelectedAddExId(null)
+      } catch (error) { setSaveError(error instanceof Error ? error.message : "Could not add exercise.") }
     })
   }
 

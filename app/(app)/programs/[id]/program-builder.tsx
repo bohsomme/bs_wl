@@ -14,6 +14,7 @@ import { useProgramBuilder } from "./use-program-builder"
 
 export function ProgramBuilder({ program, initialTemplates, exercises: initialExercises }: ProgramBuilderProps) {
   const {
+    totalWeeks, scheduleError, newRestDay, setNewRestDay, handleMoveTemplate, handleChangeWeeks,
     templates,
     exercises,
     selectedTemplate,
@@ -111,14 +112,26 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
         </Button>
         <div>
           <h1 className="text-xl font-bold">{program.name}</h1>
-          <p className="text-sm text-muted-foreground">{program.totalWeeks} weeks</p>
+          <p className="text-sm text-muted-foreground">{totalWeeks} weeks</p>
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" disabled={pending} onClick={() => handleChangeWeeks()}>Add week</Button>
+        <Button variant="outline" disabled={pending} onClick={() => { setNewRestDay(true); setAddTemplateOpen(true) }}>Add rest day</Button>
+      </div>
+      {scheduleError && <p role="alert" className="text-sm text-destructive">{scheduleError}</p>}
+      {selectedTemplate && <div className="flex flex-wrap items-center gap-3">
+        <span className="text-sm">Move {selectedTemplate.name}:</span>
+        <select aria-label="Workout week" className="rounded-md border bg-background p-2" disabled={pending} value={selectedTemplate.weekNumber} onChange={(e) => handleMoveTemplate(Number(e.target.value), selectedTemplate.dayNumber)}>{weeks.map((w) => <option key={w} value={w}>Week {w}</option>)}</select>
+        <select aria-label="Workout day" className="rounded-md border bg-background p-2" disabled={pending} value={selectedTemplate.dayNumber} onChange={(e) => handleMoveTemplate(selectedTemplate.weekNumber, Number(e.target.value))}>{Array.from({ length: 7 }, (_, i) => <option key={i} value={i + 1}>Day {i + 1}</option>)}</select>
+      </div>}
       <div className="grid gap-6 lg:grid-cols-5">
         {/* Left: template list */}
         <TemplateList
-          setAddTemplateOpen={setAddTemplateOpen}
+          setAddTemplateOpen={(value) => { setNewRestDay(false); setAddTemplateOpen(value) }}
+          handleRemoveWeek={handleChangeWeeks}
+          pending={pending}
           weeks={weeks}
           templates={templates}
           selectTemplate={selectTemplate}
@@ -130,7 +143,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
         <TemplateEditor
           selectedTemplate={selectedTemplate}
           setDupWeek={setDupWeek}
-          program={program}
+          program={{ ...program, totalWeeks }}
           setDupDay={setDupDay}
           setDupOpen={setDupOpen}
           resetExForm={resetExForm}
@@ -150,6 +163,8 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
 
       {/* Add Template Dialog */}
       <TemplateDialog
+        isRestDay={newRestDay}
+        error={scheduleError}
         addTemplateOpen={addTemplateOpen}
         setAddTemplateOpen={setAddTemplateOpen}
         newTemplateName={newTemplateName}

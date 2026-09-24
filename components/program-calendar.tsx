@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
-type PlannedWorkout = { id: number; name: string; weekNumber: number; dayNumber: number; orderInDay: number }
+type PlannedWorkout = { isRestDay?: boolean; id: number; name: string; weekNumber: number; dayNumber: number; orderInDay: number }
 
 // Calendar dates stay in UTC so daylight-saving changes never shift a workout.
 function dateAt(start: string, offset = 0) {
@@ -84,11 +84,11 @@ export function ProgramCalendar({ program, templates, today: serverToday }: {
               return (
                 <button key={date} type="button" onClick={() => { setSelected(date); setMonth(date.slice(0, 7) + "-01") }}
                   aria-pressed={selected === date} aria-current={date === today ? "date" : undefined}
-                  aria-label={`${formatDate(date, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}, ${planned.length} planned workouts${planned.length ? `: ${planned.map((w) => w.name).join(", ")}` : ""}`}
+                  aria-label={`${formatDate(date, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}, ${planned.filter((w) => !w.isRestDay).length} planned workouts${planned.length ? `: ${planned.map((w) => w.name).join(", ")}` : ""}`}
                   className={cn("min-w-0 rounded-md border p-1.5 text-left min-h-16 sm:min-h-24 sm:p-2 hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring", date.slice(0, 7) !== month.slice(0, 7) && "opacity-40", selected === date && "border-primary bg-primary/5", date === today && "font-bold")}>
                   <span className={cn("inline-flex size-6 items-center justify-center rounded-full text-xs", date === today && "bg-primary text-primary-foreground")}>{Number(date.slice(8))}</span>
                   {planned.length > 0 && <>
-                    <span className="mt-1 block text-center text-xs text-primary sm:hidden">{planned.length} <span className="sr-only">workouts</span><span aria-hidden="true">●</span></span>
+                    <span className="mt-1 block text-center text-xs text-primary sm:hidden">{planned.every((w) => w.isRestDay) ? "Rest" : planned.length} <span className="sr-only">planned entries</span><span aria-hidden="true">●</span></span>
                     <span className="hidden sm:block space-y-1 mt-1">{planned.map((workout) => <span key={workout.id} className="block truncate rounded bg-primary/10 px-1 text-xs text-primary">{workout.name}</span>)}</span>
                   </>}
                 </button>

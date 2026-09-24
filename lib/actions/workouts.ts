@@ -35,7 +35,7 @@ export async function getNextWorkout() {
   const templates = await db
     .select()
     .from(workoutTemplate)
-    .where(eq(workoutTemplate.programId, activeProgram.id))
+    .where(and(eq(workoutTemplate.programId, activeProgram.id), eq(workoutTemplate.isRestDay, false)))
     .orderBy(asc(workoutTemplate.weekNumber), asc(workoutTemplate.dayNumber))
 
   if (templates.length === 0) return null
@@ -85,6 +85,10 @@ export async function startWorkout(data: {
     }
   }
   const userId = await getUserId()
+  if (data.workoutTemplateId) {
+    const [template] = await db.select({ t: workoutTemplate }).from(workoutTemplate).innerJoin(program, eq(workoutTemplate.programId, program.id)).where(and(eq(workoutTemplate.id, data.workoutTemplateId), eq(program.userId, userId)))
+    if (!template || template.t.isRestDay) throw new Error("Choose a workout, not a rest day.")
+  }
   const [log] = await db
     .insert(workoutLog)
     .values({ ...data, userId })
@@ -247,7 +251,9 @@ export async function addExerciseLog(data: {
   exerciseId: number
   orderIndex: number
 }) {
-  await getUserId()
+  const userId = await getUserId()
+  const [owned] = await db.select().from(workoutLog).where(and(eq(workoutLog.id, data.workoutLogId), eq(workoutLog.userId, userId), eq(workoutLog.status, "in_progress")))
+  if (!owned) throw new Error("Active workout not found")
   const [el] = await db.insert(exerciseLog).values(data).returning()
   return el
 }

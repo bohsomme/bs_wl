@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db"
 import { program, workoutTemplate, templateExercise, templateFunctionalBlock } from "@/lib/db/schema"
-import { asc, eq, and } from "drizzle-orm"
+import { asc, eq, and, gt, inArray, sql } from "drizzle-orm"
 import { getUserId } from "./auth"
 import { revalidatePath } from "next/cache"
 
@@ -98,6 +98,7 @@ export async function duplicateProgram(id: number) {
       .values({
         programId: newProgram.id,
         name: t.name,
+        isRestDay: t.isRestDay,
         weekNumber: t.weekNumber,
         dayNumber: t.dayNumber,
         orderInDay: t.orderInDay,
@@ -181,10 +182,12 @@ export async function createWorkoutTemplate(data: {
   name: string
   weekNumber: number
   dayNumber: number
+  isRestDay?: boolean
 }) {
-  await getUserId()
+  await validateSchedule(data.programId, data.weekNumber, data.dayNumber, data.isRestDay ?? false)
   if (!Number.isInteger(data.dayNumber) || data.dayNumber < 1 || data.dayNumber > 7) throw new Error("Choose Day 1-7")
   const [t] = await db.insert(workoutTemplate).values(data).returning()
+  revalidatePath("/dashboard")
   revalidatePath(`/programs/${data.programId}`)
   return t
 }
@@ -193,22 +196,31 @@ export async function updateWorkoutTemplate(
   id: number,
   data: Partial<{ name: string; weekNumber: number; dayNumber: number }>
 ) {
-  await getUserId()
+  const userId = await getUserId()
+  const [existing] = await db.select({ t: workoutTemplate }).from(workoutTemplate).innerJoin(program, eq(workoutTemplate.programId, program.id)).where(and(eq(workoutTemplate.id, id), eq(program.userId, userId)))
+  if (!existing) throw new Error("Workout not found")
+  await validateSchedule(existing.t.programId, data.weekNumber ?? existing.t.weekNumber, data.dayNumber ?? existing.t.dayNumber, existing.t.isRestDay, id)
   if (data.dayNumber !== undefined && (!Number.isInteger(data.dayNumber) || data.dayNumber < 1 || data.dayNumber > 7)) throw new Error("Choose Day 1-7")
   const [t] = await db
     .update(workoutTemplate)
     .set(data)
     .where(eq(workoutTemplate.id, id))
     .returning()
+  revalidatePath(`/programs/${t.programId}`)
+  revalidatePath("/dashboard")
   return t
 }
 
 export async function deleteWorkoutTemplate(id: number, programId: number) {
-  await getUserId()
+  const p = await getProgram(programId)
+  if (!p) throw new Error("Program not found")
+  const [owned] = await db.select().from(workoutTemplate).where(and(eq(workoutTemplate.id, id), eq(workoutTemplate.programId, programId)))
+  if (!owned) throw new Error("Workout not found")
   await db.delete(templateExercise).where(eq(templateExercise.workoutTemplateId, id))
   await db.delete(templateFunctionalBlock).where(eq(templateFunctionalBlock.workoutTemplateId, id))
   await db.delete(workoutTemplate).where(eq(workoutTemplate.id, id))
   revalidatePath(`/programs/${programId}`)
+  revalidatePath("/dashboard")
 }
 
 // Duplicate a whole training day (template) to another week/day, copying its
@@ -226,12 +238,14 @@ export async function duplicateWorkoutTemplate(data: {
     .from(workoutTemplate)
     .where(eq(workoutTemplate.id, data.templateId))
   if (!source) throw new Error("Workout not found")
+  await validateSchedule(source.programId, data.targetWeek, data.targetDay, source.isRestDay)
 
   const [newTemplate] = await db
     .insert(workoutTemplate)
     .values({
       programId: source.programId,
       name: source.name,
+      isRestDay: source.isRestDay,
       weekNumber: data.targetWeek,
       dayNumber: data.targetDay,
       orderInDay: source.orderInDay,
@@ -418,7 +432,13 @@ export async function updateTemplateExercise(
     if (next.percentages.length !== 1 && next.percentages.length !== (next.setsMax ?? next.setsMin)) throw new Error("Specify a percentage for every possible set.")
   }
   if (next.rpeTarget != null && (!Number.isFinite(Number(next.rpeTarget)) || Number(next.rpeTarget) < 1 || Number(next.rpeTarget) > 10)) throw new Error("RPE must be between 1 and 10.")
-  const [te] = await db
+  const te = await db.transaction(async (tx) => {
+    if (next.section === "accessory" && next.superset) {
+      const peers = await tx.select().from(templateExercise).where(and(eq(templateExercise.workoutTemplateId, next.workoutTemplateId), eq(templateExercise.superset, next.superset)))
+      if (peers.some((peer) => peer.id !== id && peer.percentages && peer.percentages.length !== 1 && peer.percentages.length !== (next.setsMax ?? next.setsMin))) throw new Error("Update the superset percentages before changing its set count.")
+      await tx.update(templateExercise).set({ setsMin: next.setsMin, setsMax: next.setsMax }).where(and(eq(templateExercise.workoutTemplateId, next.workoutTemplateId), eq(templateExercise.superset, next.superset)))
+    }
+  const [te] = await tx
     .update(templateExercise)
     .set({
       ...data,
@@ -427,6 +447,8 @@ export async function updateTemplateExercise(
     })
     .where(eq(templateExercise.id, id))
     .returning()
+    return te
+  })
   revalidatePath(`/programs/${existing.programId}`)
   return te
 }
@@ -450,6 +472,7 @@ export async function addAccessoryGroup(data: {
   const userId = await getUserId()
   if (data.superset !== undefined && !data.superset.trim()) throw new Error("Enter a superset name.")
   if (!data.exercises.length || (data.superset && data.exercises.length < 2) || (!data.superset && data.exercises.length !== 1)) throw new Error("A superset needs at least two exercises.")
+  if (data.superset && data.exercises.some((entry) => entry.setsMin !== data.exercises[0].setsMin)) throw new Error("All superset exercises must have the same number of sets.")
   const rows = data.exercises.map((entry) => {
     const row = { ...entry, section: "accessory", superset: data.superset?.trim() || null, weightType: "rpe" }
     validateFreePick(row)
@@ -468,4 +491,33 @@ export async function addAccessoryGroup(data: {
     await tx.insert(templateExercise).values(rows.map((row, i) => ({ ...row, workoutTemplateId: data.workoutTemplateId, orderIndex: offset + i })))
   })
   revalidatePath("/programs")
+}
+
+async function validateSchedule(programId: number, week: number, day: number, rest: boolean, excludeId?: number) {
+  const p = await getProgram(programId)
+  if (!p) throw new Error("Program not found")
+  if (!Number.isInteger(week) || week < 1 || week > p.totalWeeks || !Number.isInteger(day) || day < 1 || day > 7) throw new Error("Choose a valid program week and day.")
+  const entries = await db.select().from(workoutTemplate).where(and(eq(workoutTemplate.programId, programId), eq(workoutTemplate.weekNumber, week), eq(workoutTemplate.dayNumber, day)))
+  if (entries.some((t) => t.id !== excludeId && (rest || t.isRestDay))) throw new Error("A rest day must be on a day without workouts.")
+}
+
+export async function changeProgramWeeks(programId: number, removeWeek?: number) {
+  const userId = await getUserId()
+  const result = await db.transaction(async (tx) => {
+    const [p] = await tx.select().from(program).where(and(eq(program.id, programId), eq(program.userId, userId))).for("update")
+    if (!p) throw new Error("Program not found")
+    if (removeWeek !== undefined) {
+      if (p.totalWeeks <= 1 || !Number.isInteger(removeWeek) || removeWeek < 1 || removeWeek > p.totalWeeks) throw new Error("Keep at least one week.")
+      const removed = tx.select({ id: workoutTemplate.id }).from(workoutTemplate).where(and(eq(workoutTemplate.programId, programId), eq(workoutTemplate.weekNumber, removeWeek)))
+      await tx.delete(templateExercise).where(inArray(templateExercise.workoutTemplateId, removed))
+      await tx.delete(templateFunctionalBlock).where(inArray(templateFunctionalBlock.workoutTemplateId, removed))
+      await tx.delete(workoutTemplate).where(and(eq(workoutTemplate.programId, programId), eq(workoutTemplate.weekNumber, removeWeek)))
+      await tx.update(workoutTemplate).set({ weekNumber: sql`${workoutTemplate.weekNumber} - 1` }).where(and(eq(workoutTemplate.programId, programId), gt(workoutTemplate.weekNumber, removeWeek)))
+    }
+    const [updated] = await tx.update(program).set({ totalWeeks: p.totalWeeks + (removeWeek === undefined ? 1 : -1), updatedAt: new Date() }).where(eq(program.id, programId)).returning()
+    return { program: updated, templates: await tx.select().from(workoutTemplate).where(eq(workoutTemplate.programId, programId)) }
+  })
+  revalidatePath(`/programs/${programId}`)
+  revalidatePath("/dashboard")
+  return result
 }

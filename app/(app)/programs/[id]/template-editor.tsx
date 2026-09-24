@@ -53,6 +53,7 @@ export function TemplateEditor({
   functionalBlocks,
   handleRemoveFunctionalBlock,
 }: TemplateEditorProps) {
+  if (selectedTemplate?.isRestDay) return <div className="lg:col-span-3 rounded-lg border p-6"><h2 className="font-semibold">Rest day</h2><p className="text-sm text-muted-foreground">Week {selectedTemplate.weekNumber} ? Day {selectedTemplate.dayNumber}. No workout scheduled.</p></div>
   return (
     <div className="lg:col-span-3 space-y-4">
       {selectedTemplate ? (

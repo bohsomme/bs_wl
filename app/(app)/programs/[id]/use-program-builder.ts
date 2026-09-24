@@ -1,6 +1,8 @@
 "use client"
 import { addExercise } from "@/lib/actions/exercises"
 import {
+  changeProgramWeeks,
+  updateWorkoutTemplate,
   addFunctionalBlock,
   addTemplateExercise,
   createWorkoutTemplate,
@@ -19,6 +21,9 @@ import { useState, useTransition } from "react"
 import type { ProgramBuilderProps, TemplateExerciseRow } from "./program-types"
 
 export function useProgramBuilder({ program, initialTemplates, exercises: initialExercises }: ProgramBuilderProps) {
+  const [totalWeeks, setTotalWeeks] = useState(program.totalWeeks)
+  const [scheduleError, setScheduleError] = useState("")
+  const [newRestDay, setNewRestDay] = useState(false)
   const [templates, setTemplates] = useState(initialTemplates)
   const [exercises, setExercises] = useState(initialExercises)
   const [selectedTemplate, setSelectedTemplate] = useState<WorkoutTemplate | null>(null)
@@ -85,6 +90,7 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
   function handleDuplicateDay() {
     if (!selectedTemplate) return
     startTransition(async () => {
+      try {
       const t = await duplicateWorkoutTemplate({
         templateId: selectedTemplate.id,
         targetWeek: dupWeek,
@@ -93,6 +99,8 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
       })
       setTemplates((prev) => [...prev, t])
       setDupOpen(false)
+      setScheduleError("")
+      } catch (error) { setScheduleError(error instanceof Error ? error.message : "Could not duplicate day.") }
     })
   }
 
@@ -131,17 +139,21 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
   }
 
   function handleAddTemplate() {
-    if (!newTemplateName.trim()) return
+    if (!newRestDay && !newTemplateName.trim()) return
     startTransition(async () => {
+      try {
       const t = await createWorkoutTemplate({
         programId: program.id,
-        name: newTemplateName.trim(),
+        name: newRestDay ? "Rest day" : newTemplateName.trim(),
+        isRestDay: newRestDay,
         weekNumber: newTemplateWeek,
         dayNumber: newTemplateDay,
       })
       setTemplates((prev) => [...prev, t])
       setNewTemplateName("")
       setAddTemplateOpen(false)
+      setScheduleError("")
+      } catch (error) { setScheduleError(error instanceof Error ? error.message : "Could not add day.") }
     })
   }
 
@@ -277,9 +289,37 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
   }
 
   // Group templates by week
-  const weeks = Array.from({ length: program.totalWeeks }, (_, i) => i + 1)
+  const weeks = Array.from({ length: totalWeeks }, (_, i) => i + 1)
+
+  function handleMoveTemplate(weekNumber: number, dayNumber: number) {
+    if (!selectedTemplate) return
+    startTransition(async () => {
+      try {
+        const t = await updateWorkoutTemplate(selectedTemplate.id, { weekNumber, dayNumber })
+        setTemplates((prev) => prev.map((row) => row.id === t.id ? t : row))
+        setSelectedTemplate(t)
+        setScheduleError("")
+      } catch (error) { setScheduleError(error instanceof Error ? error.message : "Could not move day.") }
+    })
+  }
+
+  function handleChangeWeeks(removeWeek?: number) {
+    if (removeWeek !== undefined && templates.some((t) => t.weekNumber === removeWeek) && !window.confirm("Remove week " + removeWeek + " and its planned workouts/rest days? Later weeks move up. Workout logs are kept.")) return
+    startTransition(async () => {
+      try {
+        const result = await changeProgramWeeks(program.id, removeWeek)
+        setTotalWeeks(result.program.totalWeeks)
+        setTemplates(result.templates)
+        setSelectedTemplate((prev) => result.templates.find((t) => t.id === prev?.id) ?? null)
+        setNewTemplateWeek((prev) => Math.min(prev, result.program.totalWeeks))
+        setDupWeek((prev) => Math.min(prev, result.program.totalWeeks))
+        setScheduleError("")
+      } catch (error) { setScheduleError(error instanceof Error ? error.message : "Could not change weeks.") }
+    })
+  }
 
   return {
+    totalWeeks, scheduleError, newRestDay, setNewRestDay, handleMoveTemplate, handleChangeWeeks,
     templates,
     exercises,
     selectedTemplate,

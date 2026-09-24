@@ -121,6 +121,33 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
     />
   )
 
+  const exerciseDialogs = <>
+      {addExOpen && saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
+      {/* Add Exercise Dialog */}
+      <AddSessionExerciseDialog
+        addExOpen={addExOpen}
+        setAddExOpen={setAddExOpen}
+        localExercises={localExercises}
+        selectedAddExId={selectedAddExId}
+        setSelectedAddExId={setSelectedAddExId}
+        setNewExOpen={setNewExOpen}
+        handleAddExercise={handleAddExercise}
+        pending={pending}
+      />
+
+      {/* New Exercise Dialog */}
+      <NewExerciseDialog
+        newExOpen={newExOpen}
+        setNewExOpen={setNewExOpen}
+        newExName={newExName}
+        setNewExName={setNewExName}
+        newExMuscle={newExMuscle}
+        setNewExMuscle={setNewExMuscle}
+        handleCreateExercise={handleCreateExercise}
+        pending={pending}
+      />
+  </>
+
   if (phase === "readiness") {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
@@ -211,6 +238,7 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
         {functionalBlocks.length > 0 && (
           <FunctionalWorkoutCard blocks={functionalBlocks}>{functionalNotesField}</FunctionalWorkoutCard>
         )}
+        {exerciseDialogs}
         <div className="text-center py-8 space-y-3">
           <p className="font-medium">No strength exercises in this workout.</p>
           <div className="flex flex-wrap gap-2 justify-center">
@@ -362,29 +390,7 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
         saveSet={saveSet}
       />
 
-      {/* Add Exercise Dialog */}
-      <AddSessionExerciseDialog
-        addExOpen={addExOpen}
-        setAddExOpen={setAddExOpen}
-        localExercises={localExercises}
-        selectedAddExId={selectedAddExId}
-        setSelectedAddExId={setSelectedAddExId}
-        setNewExOpen={setNewExOpen}
-        handleAddExercise={handleAddExercise}
-        pending={pending}
-      />
-
-      {/* New Exercise Dialog */}
-      <NewExerciseDialog
-        newExOpen={newExOpen}
-        setNewExOpen={setNewExOpen}
-        newExName={newExName}
-        setNewExName={setNewExName}
-        newExMuscle={newExMuscle}
-        setNewExMuscle={setNewExMuscle}
-        handleCreateExercise={handleCreateExercise}
-        pending={pending}
-      />
+      {exerciseDialogs}
     </div>
   )
 }

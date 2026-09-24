@@ -7,6 +7,8 @@ import type { Dispatch, SetStateAction } from "react"
 const DAYS = Array.from({ length: 7 }, (_, i) => `Day ${i + 1}`)
 
 interface TemplateListProps {
+  handleRemoveWeek: (week: number) => void
+  pending: boolean
   setAddTemplateOpen: Dispatch<SetStateAction<boolean>>
   weeks: number[]
   templates: WorkoutTemplate[]
@@ -16,6 +18,7 @@ interface TemplateListProps {
 }
 
 export function TemplateList({
+  handleRemoveWeek, pending,
   setAddTemplateOpen,
   weeks,
   templates,
@@ -36,7 +39,7 @@ export function TemplateList({
         const weekTemplates = templates.filter((t) => t.weekNumber === week)
         return (
           <div key={week}>
-            <p className="text-xs font-semibold text-muted-foreground mb-1.5">Week {week}</p>
+            <div className="flex items-center justify-between"><p className="text-xs font-semibold text-muted-foreground mb-1.5">Week {week}</p><Button variant="ghost" size="sm" disabled={pending || weeks.length <= 1} onClick={() => handleRemoveWeek(week)}>Remove week</Button></div>
             {weekTemplates.length === 0 ? (
               <p className="text-xs text-muted-foreground italic pl-2">No workouts</p>
             ) : (

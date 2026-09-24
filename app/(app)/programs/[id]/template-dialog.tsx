@@ -18,6 +18,8 @@ const DAYS = Array.from({ length: 7 }, (_, i) => `Day ${i + 1}`)
 const DAY_ITEMS = DAYS.map((label, i) => ({ value: String(i + 1), label }))
 
 interface TemplateDialogProps {
+  isRestDay: boolean
+  error: string
   addTemplateOpen: boolean
   setAddTemplateOpen: Dispatch<SetStateAction<boolean>>
   newTemplateName: string
@@ -32,6 +34,7 @@ interface TemplateDialogProps {
 }
 
 export function TemplateDialog({
+  isRestDay, error,
   addTemplateOpen,
   setAddTemplateOpen,
   newTemplateName,
@@ -48,11 +51,11 @@ export function TemplateDialog({
     <Dialog open={addTemplateOpen} onOpenChange={setAddTemplateOpen}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add Workout</DialogTitle>
-          <DialogDescription>Create a new workout session for this program.</DialogDescription>
+          <DialogTitle>{isRestDay ? "Add Rest Day" : "Add Workout"}</DialogTitle>
+          <DialogDescription>Choose the week and day for this program entry.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
-          <div className="space-y-1.5">
+          {!isRestDay && <div className="space-y-1.5">
             <Label>Workout name</Label>
             <Input
               placeholder="e.g. Lower A, Upper, Pull Day"
@@ -60,6 +63,7 @@ export function TemplateDialog({
               onChange={(e) => setNewTemplateName(e.target.value)}
             />
           </div>
+          }
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Week</Label>
@@ -89,9 +93,10 @@ export function TemplateDialog({
             </div>
           </div>
         </div>
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <DialogFooter>
           <Button variant="outline" onClick={() => setAddTemplateOpen(false)}>Cancel</Button>
-          <Button onClick={handleAddTemplate} disabled={pending || !newTemplateName.trim()}>Add</Button>
+          <Button onClick={handleAddTemplate} disabled={pending || (!isRestDay && !newTemplateName.trim())}>Add</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

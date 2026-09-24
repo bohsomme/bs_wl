@@ -91,6 +91,7 @@ export const program = pgTable("program", {
 })
 
 export const workoutTemplate = pgTable("workout_template", {
+  isRestDay: boolean("isRestDay").notNull().default(false),
   id: serial("id").primaryKey(),
   programId: integer("programId").notNull(),
   name: text("name").notNull(),

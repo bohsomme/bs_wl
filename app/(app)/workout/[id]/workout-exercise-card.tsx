@@ -150,12 +150,11 @@ export function WorkoutExerciseCard({
               <div key={k} className={cn("rounded-lg border p-2 space-y-2", saved ? saved.missed ? "border-destructive/40 bg-destructive/5" : "border-primary/40 bg-primary/5" : "border-border")}>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">{isMakeup ? "Makeup set" : "Set"} {n}</span>
-                  {te?.weightType === "pb_percent" && percentageAt(te, n) && (
+                  {!isMakeup && te?.weightType === "pb_percent" && percentageAt(te, n) && (
                     <span className="rounded-md border bg-muted px-2 py-1 text-xs font-medium">Target: {formatTarget(percentageAt(te, n)!)}% of PB{suggestedWeight(elId, n) ? " | " + suggestedWeight(elId, n) + " kg" : ""}</span>
                   )}
                   <Button variant="ghost" size="sm" disabled={pending} aria-label={"Remove " + (isMakeup ? "makeup set " : "set ") + n}
                     onClick={() => removeSet(elId, n, isMakeup)}>Remove</Button>
-                  {saved && <Badge variant={saved.missed ? "destructive" : "secondary"}>{saved.missed ? "Miss" : "Made"}</Badge>}
                 </div>
                 <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.75fr)_auto_auto] items-end gap-1.5">
                   <div className="min-w-0 space-y-1">
