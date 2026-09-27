@@ -56,6 +56,7 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
   const [selectedExId, setSelectedExId] = useState<number | null>(null)
   const [setsMin, setSetsMin] = useState("3")
   const [setsMax, setSetsMax] = useState("")
+  const [targetType, setTargetType] = useState("reps")
   const [repsMin, setRepsMin] = useState("5")
   const [repsMax, setRepsMax] = useState("")
   const [weightType, setWeightType] = useState("fixed")
@@ -182,13 +183,15 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
           freePickCriteria: selectedExId ? null : editingExercise?.freePickCriteria,
           section,
           superset: section === "accessory" ? superset.trim() || undefined : undefined,
-          totalRepsMin: totalRepsMin ? Number(totalRepsMin) : undefined,
-          totalRepsMax: totalRepsMax ? Number(totalRepsMax) : undefined,
+          totalRepsMin: targetType === "reps" && totalRepsMin ? Number(totalRepsMin) : undefined,
+          totalRepsMax: targetType === "reps" && totalRepsMax ? Number(totalRepsMax) : undefined,
           percentages: weightType === "pb_percent" ? parsePercentages(percentText) : undefined,
           setsMin: Number(setsMin),
           setsMax: setsMax ? Number(setsMax) : undefined,
-          repsMin: Number(repsMin),
-          repsMax: repsMax ? Number(repsMax) : undefined,
+          repsMin: targetType === "reps" ? Number(repsMin) : 1,
+          repsMax: targetType === "reps" && repsMax ? Number(repsMax) : undefined,
+          durationSecondsMin: targetType === "time" ? Number(repsMin) : undefined,
+          durationSecondsMax: targetType === "time" && repsMax ? Number(repsMax) : undefined,
           weightType,
           weightValue: weightValue ? Number(weightValue) : undefined,
           rpeTarget: rpeTarget ? Number(rpeTarget) : undefined,
@@ -203,6 +206,8 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
             percentages: data.percentages ?? null,
             setsMax: data.setsMax ?? null,
             repsMax: data.repsMax ?? null,
+            durationSecondsMin: data.durationSecondsMin ?? null,
+            durationSecondsMax: data.durationSecondsMax ?? null,
             weightValue: weightType === "fixed" ? data.weightValue ?? null : null,
             rpeTarget: weightType === "rpe" ? data.rpeTarget ?? null : null,
             notes: data.notes ?? null,
@@ -252,6 +257,7 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
     setSelectedExId(null)
     setSetsMin("3")
     setSetsMax("")
+    setTargetType("reps")
     setRepsMin("5")
     setRepsMax("")
     setWeightType("fixed")
@@ -268,8 +274,10 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
     setSuperset(te.superset ?? "")
     setSetsMin(String(te.setsMin))
     setSetsMax(te.setsMax == null ? "" : String(te.setsMax))
-    setRepsMin(String(te.repsMin))
-    setRepsMax(te.repsMax == null ? "" : String(te.repsMax))
+    setTargetType(te.durationSecondsMin != null ? "time" : "reps")
+    setRepsMin(String(te.durationSecondsMin ?? te.repsMin))
+    const max = te.durationSecondsMin != null ? te.durationSecondsMax : te.repsMax
+    setRepsMax(max == null ? "" : String(max))
     setTotalRepsMin(te.totalRepsMin == null ? "" : String(te.totalRepsMin))
     setTotalRepsMax(te.totalRepsMax == null ? "" : String(te.totalRepsMax))
     setWeightType(te.weightType)
@@ -363,6 +371,8 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
     setSetsMin,
     setsMax,
     setSetsMax,
+    targetType,
+    setTargetType,
     repsMin,
     setRepsMin,
     repsMax,

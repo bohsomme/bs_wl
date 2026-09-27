@@ -7,7 +7,7 @@ import {
   updateWorkoutLog,
   upsertSetLog,
 } from "@/lib/actions/workouts"
-import { percentageAt, weightTarget } from "@/lib/prescription"
+import { exerciseTarget, percentageAt, weightTarget } from "@/lib/prescription"
 import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
 import type { ExerciseLogRow, Phase, WorkoutSessionProps } from "./workout-types"
@@ -37,7 +37,7 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
   const [exRpe, setExRpe] = useState<Record<number, string>>({})
 
   // Per-set state (keyed by `${elId}-${setNum}-${isMakeup}`)
-  const [setReps, setSetReps] = useState<Record<string, string>>({})
+  const [setQuantity, setSetQuantity] = useState<Record<string, string>>({})
   const [setWeight, setSetWeight] = useState<Record<string, string>>({})
   const [workingSets, setWorkingSets] = useState<Record<number, number>>({})
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -116,11 +116,13 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
     const lastKey = setKey(elId, lastNumber, makeupCount > 0)
     const saved = getSets(elId).find((s) => s.setNumber === lastNumber && s.isMakeup === (makeupCount > 0))
     const weight = setWeight[lastKey] ?? saved?.weight ?? defaultWeight(elId, lastNumber)
-    const reps = setReps[lastKey] ?? saved?.reps?.toString() ?? initialDetails.prescriptionMap[elId]?.repsMin.toString() ?? ""
+    const te = initialDetails.prescriptionMap[elId]
+    const target = te ? exerciseTarget(te) : undefined
+    const reps = setQuantity[lastKey] ?? (target?.timed ? saved?.durationSeconds : saved?.reps)?.toString() ?? target?.min.toString() ?? ""
     if (lastNumber > 0 && weight.trim() !== "" && reps.trim() !== "") {
       const key = setKey(elId, count + 1)
       setSetWeight((prev) => ({ ...prev, [key]: weight }))
-      setSetReps((prev) => ({ ...prev, [key]: reps }))
+      setSetQuantity((prev) => ({ ...prev, [key]: reps }))
     }
     setWorkingSets((prev) => ({ ...prev, [elId]: count + 1 }))
   }
@@ -151,7 +153,7 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
           return next
         }
         setSetWeight(shift)
-        setSetReps(shift)
+        setSetQuantity(shift)
         setMissReason(shift)
         if (isMakeup) setMakeupSets((prev) => ({ ...prev, [elId]: count - 1 }))
         else setWorkingSets((prev) => ({ ...prev, [elId]: count - 1 }))
@@ -165,7 +167,12 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
     const k = setKey(elId, setNum, isMakeup)
     const saved = getSets(elId).find((s) => s.setNumber === setNum && s.isMakeup === isMakeup)
     const te = initialDetails.prescriptionMap[elId]
-    const reps = setReps[k] ?? saved?.reps?.toString() ?? te?.repsMin.toString() ?? ""
+    const quantityTarget = te ? exerciseTarget(te) : undefined
+    const reps = setQuantity[k] ?? (quantityTarget?.timed ? saved?.durationSeconds : saved?.reps)?.toString() ?? quantityTarget?.min.toString() ?? ""
+    if (quantityTarget?.timed && reps.trim() === "") {
+      setSaveError("Enter the time in seconds before saving this set.")
+      return
+    }
     const weight = setWeight[k] ?? saved?.weight ?? defaultWeight(elId, setNum)
     const target = te?.weightType === "pb_percent" ? percentageAt(te, setNum) : undefined
     if (!missed && target?.max != null && target.max !== target.min && weight.trim() === "") {
@@ -174,7 +181,7 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
     }
     if ((reps !== "" && (!Number.isInteger(Number(reps)) || Number(reps) < 0)) ||
       (weight !== "" && (!Number.isFinite(Number(weight)) || Number(weight) < 0))) {
-      setSaveError("Enter a valid weight and whole-number reps, both zero or greater.")
+      setSaveError(`Enter a valid weight and whole-number ${quantityTarget?.timed ? "seconds" : "reps"}, both zero or greater.`)
       return
     }
     startTransition(async () => {
@@ -183,7 +190,8 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
         const result = await upsertSetLog({
           exerciseName: chosenNames[elId] ?? exerciseLogs.find((row) => row.el.id === elId)?.el.exerciseName ?? undefined,
           exerciseLogId: elId, setNumber: setNum, isMakeup,
-          reps: reps === "" ? undefined : Number(reps),
+          reps: quantityTarget?.timed || reps === "" ? undefined : Number(reps),
+          durationSeconds: quantityTarget?.timed ? Number(reps) : undefined,
           weight: weight === "" ? undefined : Number(weight),
           missed, missReason: missReason[k] ?? saved?.missReason ?? undefined,
         })
@@ -203,7 +211,7 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
   function addMakeupSet(elId: number, reps: string, weight: string) {
     const count = Math.max(makeupSets[elId] ?? 0, ...getSets(elId).filter((s) => s.isMakeup).map((s) => s.setNumber))
     const key = setKey(elId, count + 1, true)
-    setSetReps((prev) => ({ ...prev, [key]: reps }))
+    setSetQuantity((prev) => ({ ...prev, [key]: reps }))
     setSetWeight((prev) => ({ ...prev, [key]: weight }))
     setMakeupSets((prev) => ({ ...prev, [elId]: count + 1 }))
   }
@@ -325,8 +333,8 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
     setExNotes,
     exRpe,
     setExRpe,
-    setReps,
-    setSetReps,
+    setQuantity,
+    setSetQuantity,
     setWeight,
     setSetWeight,
     addSet,

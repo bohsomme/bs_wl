@@ -5,6 +5,8 @@ import type { Exercise, ExerciseLog, SetLog } from "@/lib/db/schema"
 import { CheckCircle2, NotebookPen, XCircle } from "lucide-react"
 
 export function ExerciseLogCard({ el, exercise, sets }: { el: ExerciseLog; exercise: Exercise | null; sets: SetLog[] }) {
+  const hasTimedSets = sets.some((s) => s.durationSeconds != null)
+  const hasRepSets = sets.some((s) => s.reps != null)
   const workingSets = sets.filter((s) => !s.isMakeup)
   const makeupSets = sets.filter((s) => s.isMakeup)
   let nextMakeup = 0
@@ -40,7 +42,7 @@ export function ExerciseLogCard({ el, exercise, sets }: { el: ExerciseLog; exerc
             <div className="grid grid-cols-12 text-xs text-muted-foreground font-medium px-1 gap-2">
               <span className="col-span-1">#</span>
               <span className="col-span-4">Weight</span>
-              <span className="col-span-3">Reps</span>
+              <span className="col-span-3">{hasTimedSets ? hasRepSets ? "Reps / time" : "Time" : "Reps"}</span>
               <span className="col-span-4">Status</span>
             </div>
             {displayedSets.map(({ set: s, isMakeup, makeupNumber }) => (
@@ -50,7 +52,7 @@ export function ExerciseLogCard({ el, exercise, sets }: { el: ExerciseLog; exerc
               >
                 <span className={isMakeup ? "col-span-1 text-primary text-xs font-bold" : "col-span-1 text-muted-foreground"}>{isMakeup ? `+${makeupNumber}` : s.setNumber}</span>
                 <span className="col-span-4">{s.weight ? `${s.weight} kg` : "—"}</span>
-                <span className="col-span-3">{s.reps ?? "—"}</span>
+                <span className="col-span-3">{s.durationSeconds != null ? `${s.durationSeconds} sec` : s.reps ?? "—"}</span>
                 <span className="col-span-4">
                   {isMakeup ? (
                     <Badge className="text-xs py-0">Makeup</Badge>

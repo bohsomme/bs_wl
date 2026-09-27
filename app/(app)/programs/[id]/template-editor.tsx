@@ -6,6 +6,7 @@ import {
   getTemplateExercises
 } from "@/lib/actions/programs"
 import type { Exercise, Program, TemplateExercise, TemplateFunctionalBlock, WorkoutTemplate } from "@/lib/db/schema"
+import { describeExerciseTarget } from "@/lib/prescription"
 import { functionalHeading } from "@/lib/functional-fitness"
 import { Clock, Copy, Dumbbell, Flame, Plus, Settings, Trash2 } from "lucide-react"
 import type { Dispatch, SetStateAction } from "react"
@@ -55,7 +56,7 @@ export function TemplateEditor({
 }: TemplateEditorProps) {
   if (selectedTemplate?.isRestDay) return <div className="lg:col-span-3 rounded-lg border p-6"><h2 className="font-semibold">Rest day</h2><p className="text-sm text-muted-foreground">Week {selectedTemplate.weekNumber} ? Day {selectedTemplate.dayNumber}. No workout scheduled.</p></div>
   return (
-    <div className="lg:col-span-3 space-y-4">
+    <div role="region" aria-label="Workout editor" tabIndex={0} className="space-y-4 lg:col-span-3 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pr-2">
       {selectedTemplate ? (
         <>
           <div className="flex items-center justify-between">
@@ -104,7 +105,7 @@ export function TemplateEditor({
                           <p className="font-medium text-sm">{row.exercise?.name ?? "Free-pick: " + row.te.freePickCriteria}</p>
                           <p className="text-xs text-muted-foreground">
                             {row.te.setsMin}{row.te.setsMax ? `–${row.te.setsMax}` : ""} sets &times;{" "}
-                            {row.te.repsMin}{row.te.repsMax ? `–${row.te.repsMax}` : ""} reps
+                            {describeExerciseTarget(row.te)}
                             {" · "}{describeWeight(row.te)}
                             {row.te.totalRepsMin != null && " | Total reps: " + row.te.totalRepsMin + "-" + (row.te.totalRepsMax ?? row.te.totalRepsMin)}
                           </p>
@@ -139,7 +140,7 @@ export function TemplateEditor({
                 {group && <p className="text-sm font-semibold">Superset: {group} <span className="font-normal text-muted-foreground">- alternate exercises each round</span></p>}
                 {templateExercises.filter((row) => row.te.section === "accessory" && (row.te.superset ?? "") === group).map((row) => (
                   <div key={row.te.id} className="flex items-center justify-between gap-2">
-                    <div><p className="text-sm font-medium">{row.exercise?.name ?? "Free-pick: " + row.te.freePickCriteria}</p><p className="text-xs text-muted-foreground">{row.te.setsMin}{row.te.setsMax ? "-" + row.te.setsMax : ""} sets &times; {row.te.repsMin}{row.te.repsMax ? "-" + row.te.repsMax : ""} reps{row.te.rpeTarget ? " | RPE " + row.te.rpeTarget : ""}</p></div>
+                    <div><p className="text-sm font-medium">{row.exercise?.name ?? "Free-pick: " + row.te.freePickCriteria}</p><p className="text-xs text-muted-foreground">{row.te.setsMin}{row.te.setsMax ? "-" + row.te.setsMax : ""} sets &times; {describeExerciseTarget(row.te)}{row.te.rpeTarget ? " | RPE " + row.te.rpeTarget : ""}</p></div>
                     <div className="flex items-center shrink-0">
                       <Button variant="ghost" size="sm" disabled={pending} aria-label={"Edit " + (row.exercise?.name ?? "Free-pick: " + row.te.freePickCriteria)} onClick={() => handleEditExercise(row.te)}>Edit</Button>
                       <Button variant="ghost" size="icon" aria-label={"Remove " + (row.exercise?.name ?? "Free-pick: " + row.te.freePickCriteria)} onClick={() => handleRemoveExercise(row.te.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>

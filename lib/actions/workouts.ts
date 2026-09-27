@@ -329,6 +329,7 @@ export async function upsertSetLog(data: {
   exerciseName?: string
   isMakeup?: boolean
   reps?: number
+  durationSeconds?: number
   weight?: number
   rpe?: number
   missed?: boolean
@@ -338,13 +339,16 @@ export async function upsertSetLog(data: {
   if (data.weight != null && (!Number.isFinite(data.weight) || data.weight < 0)) throw new Error("Enter one valid weight in kg.")
   if (data.reps != null && (!Number.isInteger(data.reps) || data.reps < 0)) throw new Error("Enter whole-number reps, zero or greater.")
 
+  if (data.durationSeconds != null && (!Number.isInteger(data.durationSeconds) || data.durationSeconds < 0)) throw new Error("Enter whole-number seconds, zero or greater.")
+  if (data.durationSeconds != null && data.reps != null) throw new Error("Log either seconds or reps for a set.")
+
   const [owned] = await db.select({ el: exerciseLog }).from(exerciseLog)
     .innerJoin(workoutLog, eq(exerciseLog.workoutLogId, workoutLog.id))
     .where(and(eq(exerciseLog.id, data.exerciseLogId), eq(workoutLog.userId, userId)))
   if (!owned) throw new Error("Exercise not found")
   if (owned.el.exerciseId == null) {
     if (!data.exerciseName?.trim()) throw new Error("Enter the exercise you chose.")
-    if (data.reps == null || data.weight == null) throw new Error("Enter reps and weight for your free-pick exercise (use 0 kg for bodyweight).")
+    if ((data.reps == null && data.durationSeconds == null) || data.weight == null) throw new Error("Enter reps or seconds, and weight for your free-pick exercise (use 0 kg for bodyweight).")
     await db.update(exerciseLog).set({ exerciseName: data.exerciseName.trim() }).where(eq(exerciseLog.id, data.exerciseLogId))
   }
 
@@ -352,7 +356,8 @@ export async function upsertSetLog(data: {
     exerciseLogId: data.exerciseLogId,
     setNumber: data.setNumber,
     isMakeup: data.isMakeup ?? false,
-    reps: data.reps,
+    reps: data.reps ?? null,
+    durationSeconds: data.durationSeconds ?? null,
     weight: data.weight != null ? String(data.weight) : null,
     rpe: data.rpe != null ? String(data.rpe) : null,
     missed: data.missed ?? false,

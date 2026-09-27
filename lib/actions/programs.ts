@@ -1,5 +1,6 @@
 "use server"
 
+import { validateDurationTarget } from "@/lib/prescription"
 import { db } from "@/lib/db"
 import { program, workoutTemplate, templateExercise, templateFunctionalBlock } from "@/lib/db/schema"
 import { asc, eq, and, gt, inArray, sql } from "drizzle-orm"
@@ -125,6 +126,8 @@ export async function duplicateProgram(id: number) {
         setsMax: ex.setsMax,
         repsMin: ex.repsMin,
         repsMax: ex.repsMax,
+        durationSecondsMin: ex.durationSecondsMin,
+        durationSecondsMax: ex.durationSecondsMax,
         weightType: ex.weightType,
         weightValue: ex.weightValue,
         rpeTarget: ex.rpeTarget,
@@ -272,6 +275,8 @@ export async function duplicateWorkoutTemplate(data: {
       setsMax: ex.setsMax,
       repsMin: ex.repsMin,
       repsMax: ex.repsMax,
+      durationSecondsMin: ex.durationSecondsMin,
+      durationSecondsMax: ex.durationSecondsMax,
       weightType: ex.weightType,
       weightValue: ex.weightValue,
       rpeTarget: ex.rpeTarget,
@@ -361,6 +366,8 @@ export async function addTemplateExercise(data: {
   setsMax?: number
   repsMin: number
   repsMax?: number
+  durationSecondsMin?: number
+  durationSecondsMax?: number
   section?: string
   superset?: string
   totalRepsMin?: number
@@ -373,6 +380,7 @@ export async function addTemplateExercise(data: {
 }) {
   await getUserId()
   validateFreePick(data)
+  validateDurationTarget(data)
   for (const [min, max] of [[data.setsMin, data.setsMax], [data.repsMin, data.repsMax], [data.totalRepsMin, data.totalRepsMax]]) {
     if ((min != null && (!Number.isInteger(min) || min < 1)) || (max != null && (min == null || !Number.isInteger(max) || max < min))) throw new Error("Enter valid, ordered set and rep ranges.")
   }
@@ -407,6 +415,8 @@ export async function updateTemplateExercise(
     setsMax: number | null
     repsMin: number
     repsMax: number | null
+    durationSecondsMin: number | null
+    durationSecondsMax: number | null
     weightType: string
     weightValue: number | null
     rpeTarget: number | null
@@ -423,6 +433,7 @@ export async function updateTemplateExercise(
   if (!existing) throw new Error("Exercise not found")
   const next = { ...existing.te, ...data }
   validateFreePick(next)
+  validateDurationTarget(next)
   for (const [min, max] of [[next.setsMin, next.setsMax], [next.repsMin, next.repsMax], [next.totalRepsMin, next.totalRepsMax]]) {
     if ((min != null && (!Number.isInteger(min) || min < 1)) || (max != null && (min == null || !Number.isInteger(max) || max < min))) throw new Error("Enter valid, ordered set and rep ranges.")
   }
@@ -467,7 +478,7 @@ function validateFreePick(data: { exerciseId: number | null; freePickCriteria?: 
 export async function addAccessoryGroup(data: {
   workoutTemplateId: number
   superset?: string
-  exercises: { exerciseId: number | null; freePickCriteria?: string; setsMin: number; repsMin: number; rpeTarget?: number }[]
+  exercises: { exerciseId: number | null; freePickCriteria?: string; setsMin: number; repsMin: number; durationSecondsMin?: number; rpeTarget?: number }[]
 }) {
   const userId = await getUserId()
   if (data.superset !== undefined && !data.superset.trim()) throw new Error("Enter a superset name.")
@@ -476,6 +487,7 @@ export async function addAccessoryGroup(data: {
   const rows = data.exercises.map((entry) => {
     const row = { ...entry, section: "accessory", superset: data.superset?.trim() || null, weightType: "rpe" }
     validateFreePick(row)
+    validateDurationTarget(row)
     if (![entry.setsMin, entry.repsMin].every((n) => Number.isInteger(n) && n > 0)) throw new Error("Enter positive whole numbers for sets and reps.")
     if (entry.rpeTarget != null && (!Number.isFinite(entry.rpeTarget) || entry.rpeTarget < 1 || entry.rpeTarget > 10)) throw new Error("RPE must be between 1 and 10.")
     return { ...row, freePickCriteria: entry.freePickCriteria?.trim() || null, rpeTarget: entry.rpeTarget == null ? null : String(entry.rpeTarget) }

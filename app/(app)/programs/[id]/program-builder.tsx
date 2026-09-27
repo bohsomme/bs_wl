@@ -59,6 +59,8 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
     setSetsMin,
     setsMax,
     setSetsMax,
+    targetType,
+    setTargetType,
     repsMin,
     setRepsMin,
     repsMax,
@@ -105,7 +107,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
   } = useProgramBuilder({ program, initialTemplates, exercises: initialExercises })
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6 lg:h-[calc(100dvh-6.5rem)] lg:min-h-0">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button render={<Link href="/programs" />} variant="ghost" size="icon">
@@ -128,7 +130,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
         <select aria-label="Workout week" className="rounded-md border bg-background p-2" disabled={pending} value={selectedTemplate.weekNumber} onChange={(e) => handleMoveTemplate(Number(e.target.value), selectedTemplate.dayNumber)}>{weeks.map((w) => <option key={w} value={w}>Week {w}</option>)}</select>
         <select aria-label="Workout day" className="rounded-md border bg-background p-2" disabled={pending} value={selectedTemplate.dayNumber} onChange={(e) => handleMoveTemplate(selectedTemplate.weekNumber, Number(e.target.value))}>{Array.from({ length: 7 }, (_, i) => <option key={i} value={i + 1}>Day {i + 1}</option>)}</select>
       </div>}
-      <div className="grid gap-6 lg:grid-cols-5">
+      <div className="grid gap-6 lg:min-h-0 lg:flex-1 lg:grid-cols-5 lg:grid-rows-[minmax(0,1fr)]">
         {/* Left: template list */}
         <TemplateList
           setAddTemplateOpen={(value) => { setNewRestDay(false); setAddTemplateOpen(value) }}
@@ -143,6 +145,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
 
         {/* Right: exercise builder */}
         <TemplateEditor
+          key={selectedTemplate?.id ?? "empty"}
           selectedTemplate={selectedTemplate}
           setDupWeek={setDupWeek}
           program={{ ...program, totalWeeks }}
@@ -197,6 +200,8 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
         setSetsMin={setSetsMin}
         setsMax={setsMax}
         setSetsMax={setSetsMax}
+        targetType={targetType}
+        setTargetType={setTargetType}
         repsMin={repsMin}
         setRepsMin={setRepsMin}
         repsMax={repsMax}

@@ -27,7 +27,7 @@ export function TemplateList({
   handleDeleteTemplate,
 }: TemplateListProps) {
   return (
-    <div className="lg:col-span-2 space-y-4">
+    <div role="region" aria-label="Workouts" tabIndex={0} className="space-y-4 lg:col-span-2 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pr-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Workouts</h2>
         <Button size="sm" variant="outline" className="gap-1" onClick={() => setAddTemplateOpen(true)}>

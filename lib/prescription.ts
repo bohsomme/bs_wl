@@ -1,5 +1,43 @@
 export type PercentageTarget = { min: number; max?: number }
 
+type ExerciseTarget = {
+  repsMin: number
+  repsMax?: number | null
+  durationSecondsMin?: number | null
+  durationSecondsMax?: number | null
+}
+
+export function exerciseTarget(p: ExerciseTarget) {
+  const timed = p.durationSecondsMin != null
+  return {
+    timed,
+    min: timed ? p.durationSecondsMin! : p.repsMin,
+    max: (timed ? p.durationSecondsMax : p.repsMax) ?? null,
+    unit: timed ? "sec" : "reps",
+  }
+}
+
+export function describeExerciseTarget(p: ExerciseTarget) {
+  const target = exerciseTarget(p)
+  return `${formatTarget({ min: target.min, max: target.max ?? undefined })} ${target.unit}`
+}
+
+export function validateDurationTarget(p: {
+  durationSecondsMin?: number | null
+  durationSecondsMax?: number | null
+  totalRepsMin?: number | null
+  totalRepsMax?: number | null
+}) {
+  const min = p.durationSecondsMin, max = p.durationSecondsMax
+  if ((min != null && (!Number.isInteger(min) || min < 1)) ||
+    (max != null && (min == null || !Number.isInteger(max) || max < min))) {
+    throw new Error("Enter positive whole seconds with the maximum at least the minimum.")
+  }
+  if (min != null && (p.totalRepsMin != null || p.totalRepsMax != null)) {
+    throw new Error("Timed exercises cannot have a total reps target.")
+  }
+}
+
 export function parsePercentages(value: string): PercentageTarget[] {
   return value.split(",").map((part) => {
     const match = part.trim().match(/^(\d+(?:\.\d+)?)(?:\s*[-–]\s*(\d+(?:\.\d+)?))?$/)

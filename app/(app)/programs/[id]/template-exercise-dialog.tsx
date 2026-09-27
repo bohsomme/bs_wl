@@ -38,6 +38,8 @@ interface TemplateExerciseDialogProps {
   setSetsMin: Dispatch<SetStateAction<string>>
   setsMax: string
   setSetsMax: Dispatch<SetStateAction<string>>
+  targetType: string
+  setTargetType: Dispatch<SetStateAction<string>>
   repsMin: string
   setRepsMin: Dispatch<SetStateAction<string>>
   repsMax: string
@@ -79,6 +81,8 @@ export function TemplateExerciseDialog({
   setSetsMin,
   setsMax,
   setSetsMax,
+  targetType,
+  setTargetType,
   repsMin,
   setRepsMin,
   repsMax,
@@ -108,7 +112,7 @@ export function TemplateExerciseDialog({
       <DialogContent className="max-w-lg max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{editingExercise ? "Edit" : "Add"} {section === "accessory" ? "Accessory" : "Exercise"}</DialogTitle>
-          <DialogDescription>Prescribe sets, reps, and loading for this exercise.</DialogDescription>
+          <DialogDescription>Prescribe sets, reps or time, and loading for this exercise.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
@@ -137,6 +141,12 @@ export function TemplateExerciseDialog({
             </>}
           </div>
 
+          <div className="space-y-1.5">
+            <Label htmlFor="exercise-target-type">Target per set</Label>
+            <select id="exercise-target-type" className="w-full rounded-md border bg-background p-2" value={targetType} onChange={(e) => { setTargetType(e.target.value); setRepsMin(e.target.value === "time" ? "30" : "5"); setRepsMax("") }}>
+              <option value="reps">Reps</option><option value="time">Time (seconds)</option>
+            </select>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Sets (min)</Label>
@@ -147,11 +157,11 @@ export function TemplateExerciseDialog({
               <Input type="number" min={1} placeholder="Same as min" value={setsMax} onChange={(e) => setSetsMax(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label>Reps (min)</Label>
+              <Label>{targetType === "time" ? "Seconds (min)" : "Reps (min)"}</Label>
               <Input type="number" min={1} value={repsMin} onChange={(e) => setRepsMin(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label>Reps (max, optional)</Label>
+              <Label>{targetType === "time" ? "Seconds (max, optional)" : "Reps (max, optional)"}</Label>
               <Input type="number" min={1} placeholder="Same as min" value={repsMax} onChange={(e) => setRepsMax(e.target.value)} />
             </div>
           </div>
@@ -160,7 +170,7 @@ export function TemplateExerciseDialog({
             <Label htmlFor="superset">Superset name (optional)</Label>
             <Input id="superset" placeholder="Use the same name for 2+ exercises" value={superset} onChange={(e) => setSuperset(e.target.value)} />
           </div>}
-          {section === "main" && <div className="grid grid-cols-2 gap-3">
+          {section === "main" && targetType === "reps" && <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5"><Label htmlFor="total-reps-min">Total reps (min, optional)</Label><Input id="total-reps-min" type="number" min={1} value={totalRepsMin} onChange={(e) => setTotalRepsMin(e.target.value)} /></div>
             <div className="space-y-1.5"><Label htmlFor="total-reps-max">Total reps (max, optional)</Label><Input id="total-reps-max" type="number" min={1} placeholder="Same as min" value={totalRepsMax} onChange={(e) => setTotalRepsMax(e.target.value)} /></div>
           </div>}

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import type { SetLog, TemplateExercise } from "@/lib/db/schema"
-import { formatTarget, percentageAt, rangeStatus } from "@/lib/prescription"
+import { describeExerciseTarget, exerciseTarget, formatTarget, percentageAt, rangeStatus } from "@/lib/prescription"
 import { cn } from "@/lib/utils"
 import {
   NotebookPen,
@@ -40,8 +40,8 @@ interface WorkoutExerciseCardProps {
   defaultWeight: (elId: number, setNum: number) => string
   setSetWeight: Dispatch<SetStateAction<Record<string, string>>>
   pending: boolean
-  setReps: Record<string, string>
-  setSetReps: Dispatch<SetStateAction<Record<string, string>>>
+  setQuantity: Record<string, string>
+  setSetQuantity: Dispatch<SetStateAction<Record<string, string>>>
   saveSet: (elId: number, setNum: number, isMakeup?: boolean, missed?: boolean, addMakeup?: boolean) => void
   setMissModalKey: Dispatch<SetStateAction<string | null>>
   addSet: (elId: number) => void
@@ -74,8 +74,8 @@ export function WorkoutExerciseCard({
   defaultWeight,
   setSetWeight,
   pending,
-  setReps,
-  setSetReps,
+  setQuantity,
+  setSetQuantity,
   saveSet,
   setMissModalKey,
   addSet,
@@ -86,6 +86,7 @@ export function WorkoutExerciseCard({
   setExNotes,
   saveExerciseNotes,
 }: WorkoutExerciseCardProps) {
+  const target = te ? exerciseTarget(te) : undefined
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -116,7 +117,7 @@ export function WorkoutExerciseCard({
 
       <CardContent className="space-y-4">
         {te && <p className="text-sm text-muted-foreground">
-          {range(te.setsMin, te.setsMax)} sets &times; {range(te.repsMin, te.repsMax)} reps
+          {range(te.setsMin, te.setsMax)} sets &times; {describeExerciseTarget(te)}
           {te.weightType === "fixed" && te.weightValue != null ? " - " + Number(te.weightValue) + " kg" : " - " + weightHint}
         </p>}
         {te && <div className="flex flex-wrap gap-2" aria-live="polite">
@@ -164,10 +165,10 @@ export function WorkoutExerciseCard({
                       onChange={(e) => setSetWeight((prev) => ({ ...prev, [k]: e.target.value }))} disabled={pending} />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor={"reps-" + k} className="text-xs">Reps{te ? " (" + range(te.repsMin, te.repsMax) + ")" : ""}</Label>
-                    <Input id={"reps-" + k} type="number" min={0} step={1} placeholder="reps" className="h-9 px-2"
-                      value={setReps[k] ?? saved?.reps?.toString() ?? te?.repsMin.toString() ?? ""}
-                      onChange={(e) => setSetReps((prev) => ({ ...prev, [k]: e.target.value }))} disabled={pending} />
+                    <Label htmlFor={"reps-" + k} className="text-xs">{target?.timed ? "Seconds" : "Reps"}{target ? " (" + range(target.min, target.max) + ")" : ""}</Label>
+                    <Input id={"reps-" + k} type="number" min={0} step={1} placeholder={target?.timed ? "seconds" : "reps"} className="h-9 px-2"
+                      value={setQuantity[k] ?? (target?.timed ? saved?.durationSeconds : saved?.reps)?.toString() ?? target?.min.toString() ?? ""}
+                      onChange={(e) => setSetQuantity((prev) => ({ ...prev, [k]: e.target.value }))} disabled={pending} />
                   </div>
                   <Button size="sm" className="px-2" variant={saved && !saved.missed ? "default" : "outline"} disabled={pending}
                     onClick={() => saveSet(elId, n, isMakeup)}>Make</Button>

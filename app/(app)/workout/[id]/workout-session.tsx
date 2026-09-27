@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { formatTarget } from "@/lib/prescription"
+import { describeExerciseTarget, formatTarget } from "@/lib/prescription"
 import { cn } from "@/lib/utils"
 import {
   CheckCircle2,
@@ -49,8 +49,8 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
     setExNotes,
     exRpe,
     setExRpe,
-    setReps,
-    setSetReps,
+    setQuantity,
+    setSetQuantity,
     setWeight,
     setSetWeight,
     addSet,
@@ -319,8 +319,8 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
         defaultWeight={defaultWeight}
         setSetWeight={setSetWeight}
         pending={pending}
-        setReps={setReps}
-        setSetReps={setSetReps}
+        setQuantity={setQuantity}
+        setSetQuantity={setSetQuantity}
         saveSet={saveSet}
         setMissModalKey={setMissModalKey}
         addSet={addSet}
@@ -368,7 +368,7 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
             if (prescription?.section !== "accessory" || (prescription.superset ?? "") !== group) return null
             return <button key={row.el.id} type="button" onClick={() => { saveExerciseNotes(currentRow); setCurrentExIdx(index) }} className={cn("block w-full rounded-md p-2 text-left hover:bg-accent", index === currentExIdx && "bg-accent")}>
               <p className="text-sm font-medium">{row.exercise?.name ?? chosenNames[row.el.id] ?? row.el.exerciseName ?? "Free-pick exercise"}</p>
-              <p className="text-xs text-muted-foreground">{range(prescription.setsMin, prescription.setsMax)} sets &times; {range(prescription.repsMin, prescription.repsMax)} reps{prescription.rpeTarget ? " | RPE " + prescription.rpeTarget : ""} | {getSets(row.el.id).filter((set) => !set.isMakeup).length} sets saved</p>
+              <p className="text-xs text-muted-foreground">{range(prescription.setsMin, prescription.setsMax)} sets &times; {describeExerciseTarget(prescription)}{prescription.rpeTarget ? " | RPE " + prescription.rpeTarget : ""} | {getSets(row.el.id).filter((set) => !set.isMakeup).length} sets saved</p>
             </button>
           })}
         </div>)}

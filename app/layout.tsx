@@ -14,8 +14,8 @@ export const metadata: Metadata = {
   description: "Track your weightlifting programs, workouts, and personal bests.",
   generator: "v0.app",
   icons: {
-    icon: "/icon.svg",
-    apple: "/apple-icon.png",
+    icon: "/wl_f_logo.png",
+    apple: "/wl_f_logo.png",
   },
 }
 

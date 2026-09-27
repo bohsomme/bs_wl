@@ -42,7 +42,8 @@ function plannedExercise(row: WorkoutPlan["exercises"][number]) {
     section: p.section,
     superset: p.superset,
     sets: rangeValue(p.setsMin, p.setsMax),
-    reps: rangeValue(p.repsMin, p.repsMax),
+    reps: p.durationSecondsMin != null ? null : rangeValue(p.repsMin, p.repsMax),
+    duration_seconds: rangeValue(p.durationSecondsMin ?? null, p.durationSecondsMax ?? null),
     total_reps: rangeValue(p.totalRepsMin, p.totalRepsMax),
     weight_type: p.weightType,
     weight_value: numeric(p.weightValue),
@@ -125,7 +126,7 @@ export function buildProgramExport(data: ExportData) {
         created_at: el?.createdAt.toISOString() ?? null,
         sets: sets.map((set) => ({
           set_log_id: set.id, set_number: set.setNumber, is_makeup: set.isMakeup,
-          weight_kg: numeric(set.weight), reps: set.reps, rpe: numeric(set.rpe),
+          weight_kg: numeric(set.weight), reps: set.reps, duration_seconds: set.durationSeconds ?? null, rpe: numeric(set.rpe),
           missed: set.missed, miss_reason: set.missReason, created_at: set.createdAt.toISOString(),
         })),
       }
@@ -167,7 +168,7 @@ export function buildProgramExport(data: ExportData) {
   })
 
   return {
-    json_schema_version: 1.0,
+    json_schema_version: 1.1,
     exported_at: (data.exportedAt ?? new Date()).toISOString(),
     block: {
       program_id: program.id, name: program.name, description: program.description,
@@ -177,7 +178,7 @@ export function buildProgramExport(data: ExportData) {
     metadata: {
       time_zone: range.timeZone,
       selection: "Inclusive local workout start dates; includes completed and in-progress sessions.",
-      units: { weight: "kg", functional_duration: "minutes" },
+      units: { weight: "kg", exercise_duration: "seconds", functional_duration: "minutes" },
       ratings: "Readiness and bar feel are self-reported, currently 1–5. Legacy readiness may use 1–10; its original scale was not stored. RPE is 1–10.",
       percentages: "Percentages apply to the reference estimated 1RM. A single target repeats for all sets; multiple targets are ordered by working-set number. min/max are inclusive. Historical 1RM is only available in workout snapshots.",
       sets: "Only saved sets are exported, ordered by creation time. Working and makeup sets have separate set numbers. Missed sets do not record successful rep counts. No-log matches do not imply an exercise was skipped.",
