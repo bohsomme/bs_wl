@@ -54,7 +54,7 @@ export function FunctionalBlockDialog({
 }: FunctionalBlockDialogProps) {
   return (
     <Dialog open={ffOpen} onOpenChange={(open) => { setFfOpen(open); if (!open) resetFfForm() }}>
-      <DialogContent className="max-w-lg max-h-[90dvh] overflow-y-auto">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Functional Fitness</DialogTitle>
           <DialogDescription>

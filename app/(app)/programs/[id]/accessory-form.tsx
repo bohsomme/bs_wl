@@ -38,7 +38,7 @@ export function AccessoryForm({ templateId, exercises, onSaved }: { templateId: 
   return <>
     <Button size="sm" variant="outline" onClick={() => { setRows([blank()]); setSuperset(false); setSharedSets("3"); setName(""); setError(""); setOpen(true) }}>Add Accessory</Button>
     <Dialog open={open} onOpenChange={(value) => { if (!pending) setOpen(value) }}>
-      <DialogContent className="max-w-lg max-h-[90dvh] overflow-y-auto">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader><DialogTitle>Add Accessories</DialogTitle><DialogDescription>Choose an individual exercise or build a whole superset.</DialogDescription></DialogHeader>
         <fieldset disabled={pending} className="space-y-4">
           <Label htmlFor="accessory-kind">Accessory type</Label>

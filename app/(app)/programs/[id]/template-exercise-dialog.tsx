@@ -109,7 +109,7 @@ export function TemplateExerciseDialog({
 }: TemplateExerciseDialogProps) {
   return (
     <Dialog open={addExOpen} onOpenChange={(open) => { if (pending) return; setAddExOpen(open); if (!open) resetExForm() }}>
-      <DialogContent className="max-w-lg max-h-[90dvh] overflow-y-auto">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{editingExercise ? "Edit" : "Add"} {section === "accessory" ? "Accessory" : "Exercise"}</DialogTitle>
           <DialogDescription>Prescribe sets, reps or time, and loading for this exercise.</DialogDescription>

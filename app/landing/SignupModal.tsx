@@ -62,7 +62,7 @@ export function SignupModal({ open, onOpenChange, program, locale }: SignupModal
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent>
         {status === "success" ? (
           <div className="flex flex-col items-center gap-4 py-6 text-center">
             <CheckCircle className="h-12 w-12 text-primary" />
