@@ -28,6 +28,11 @@ export default async function WorkoutPage({ params }: Props) {
   )) {
     pbWeights[pb.exerciseId] = String(calculateOneRepMax(Number(pb.weight), pb.reps))
   }
+  for (const row of details.log.plannedSnapshot?.exercises ?? []) {
+    if (row.prescription.exerciseId == null) continue
+    delete pbWeights[row.prescription.exerciseId]
+    if (row.estimatedOneRepMaxKg != null) pbWeights[row.prescription.exerciseId] = String(row.estimatedOneRepMaxKg)
+  }
 
   return <WorkoutSession details={details} exercises={exercises} pbWeights={pbWeights} />
 }

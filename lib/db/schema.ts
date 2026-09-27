@@ -138,6 +138,7 @@ export const templateFunctionalBlock = pgTable("template_functional_block", {
 })
 
 export const workoutLog = pgTable("workout_log", {
+  plannedSnapshot: jsonb("plannedSnapshot").$type<import("@/lib/workout-plan").WorkoutPlan>(),
   id: serial("id").primaryKey(),
   userId: text("userId").notNull(),
   workoutTemplateId: integer("workoutTemplateId"),
@@ -155,6 +156,7 @@ export const workoutLog = pgTable("workout_log", {
 })
 
 export const exerciseLog = pgTable("exercise_log", {
+  templateExerciseId: integer("templateExerciseId"),
   exerciseName: text("exerciseName"),
   superset: text("superset"),
   id: serial("id").primaryKey(),

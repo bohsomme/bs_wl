@@ -1,5 +1,6 @@
 "use client"
 import { NewExerciseDialog } from "@/components/new-exercise-dialog"
+import { ProgramExportDialog } from "@/components/program-export-dialog"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft } from "lucide-react"
 import Link from "next/link"
@@ -117,6 +118,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
       </div>
 
       <div className="flex flex-wrap gap-2">
+        <ProgramExportDialog program={{ ...program, totalWeeks }} />
         <Button variant="outline" disabled={pending} onClick={() => handleChangeWeeks()}>Add week</Button>
         <Button variant="outline" disabled={pending} onClick={() => { setNewRestDay(true); setAddTemplateOpen(true) }}>Add rest day</Button>
       </div>

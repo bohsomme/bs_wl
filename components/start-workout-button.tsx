@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { startWorkout, seedWorkoutFromTemplate } from "@/lib/actions/workouts"
+import { startWorkout } from "@/lib/actions/workouts"
 import { Button } from "@/components/ui/button"
 import { Play } from "lucide-react"
 
@@ -23,7 +23,6 @@ export function StartWorkoutButton({ templateId, programId, workoutName }: Start
         programId,
         name: workoutName,
       })
-      await seedWorkoutFromTemplate(log.id, templateId)
       router.push(`/workout/${log.id}`)
     })
   }

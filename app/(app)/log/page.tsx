@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { BookOpen, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
 import { DeleteWorkoutButton } from "./delete-workout-button"
+import { ProgramExportDialog } from "@/components/program-export-dialog"
 
 export default async function LogPage({
   searchParams,
@@ -30,6 +31,7 @@ export default async function LogPage({
   const selected = groups.find((group) => group.key === selectedProgram)
   if (selectedProgram !== undefined && !selected) notFound()
   const logs = selected?.logs ?? []
+  const exportProgram = programs.find((p) => String(p.id) === selectedProgram)
 
   return (
     <div className="space-y-6">
@@ -42,6 +44,7 @@ export default async function LogPage({
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-bold">{selected?.name ?? "Workout Log"}</h1>
           {selected?.isActive && <Badge>Current program</Badge>}
+          {exportProgram && <ProgramExportDialog program={exportProgram} />}
         </div>
         <p className="text-muted-foreground text-sm mt-1">
           {selected ? "All your completed workout sessions in this program." : "Choose a program to view your completed workouts."}

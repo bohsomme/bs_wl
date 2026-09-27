@@ -1,5 +1,6 @@
 "use server"
 import { calculateOneRepMax } from "@/lib/strength"
+import type { WorkoutPlan } from "@/lib/workout-plan"
 
 import { db } from "@/lib/db"
 import {
@@ -86,8 +87,49 @@ export async function startWorkout(data: {
   }
   const userId = await getUserId()
   if (data.workoutTemplateId) {
-    const [template] = await db.select({ t: workoutTemplate }).from(workoutTemplate).innerJoin(program, eq(workoutTemplate.programId, program.id)).where(and(eq(workoutTemplate.id, data.workoutTemplateId), eq(program.userId, userId)))
-    if (!template || template.t.isRestDay) throw new Error("Choose a workout, not a rest day.")
+    const log = await db.transaction(async (tx) => {
+      const [owned] = await tx.select({ t: workoutTemplate }).from(workoutTemplate)
+        .innerJoin(program, eq(workoutTemplate.programId, program.id))
+        .where(and(eq(workoutTemplate.id, data.workoutTemplateId!), eq(program.userId, userId)))
+      if (!owned || owned.t.isRestDay) throw new Error("Choose a workout, not a rest day.")
+      if (data.programId != null && data.programId !== owned.t.programId) throw new Error("Workout does not belong to this program")
+      const rows = await tx.select({ te: templateExercise, exercise }).from(templateExercise)
+        .leftJoin(exercise, eq(templateExercise.exerciseId, exercise.id))
+        .where(eq(templateExercise.workoutTemplateId, owned.t.id))
+        .orderBy(asc(templateExercise.orderIndex), asc(templateExercise.id))
+      const blocks = await tx.select().from(templateFunctionalBlock)
+        .where(eq(templateFunctionalBlock.workoutTemplateId, owned.t.id)).orderBy(asc(templateFunctionalBlock.orderIndex))
+      const bests = await tx.select().from(personalBest).where(eq(personalBest.userId, userId))
+        .orderBy(asc(personalBest.createdAt), asc(personalBest.id))
+      const pbWeights = new Map(bests.map((pb) => [pb.exerciseId, calculateOneRepMax(Number(pb.weight), pb.reps)]))
+      const { id, name, weekNumber, dayNumber, orderInDay, isRestDay } = owned.t
+      const plannedSnapshot: WorkoutPlan = {
+        capturedAt: new Date().toISOString(),
+        template: { id, name, weekNumber, dayNumber, orderInDay, isRestDay },
+        exercises: rows.map(({ te, exercise: ex }) => {
+          const { createdAt: _createdAt, ...prescription } = te
+          return {
+            prescription,
+            exercise: ex ? { id: ex.id, name: ex.name, muscleGroup: ex.muscleGroup, description: ex.description } : null,
+            estimatedOneRepMaxKg: te.exerciseId == null ? null : pbWeights.get(te.exerciseId) ?? null,
+          }
+        }),
+        functionalBlocks: blocks.map(({ createdAt: _createdAt, ...block }) => block),
+      }
+      const [saved] = await tx.insert(workoutLog).values({ ...data, userId, programId: owned.t.programId, plannedSnapshot }).returning()
+      // Seed atomically from the same plan that will be shown and exported.
+      if (rows.length) await tx.insert(exerciseLog).values(rows.map(({ te }) => ({
+        workoutLogId: saved.id, templateExerciseId: te.id, exerciseId: te.exerciseId,
+        freePickCriteria: te.freePickCriteria, superset: te.superset, orderIndex: te.orderIndex,
+      })))
+      return saved
+    }, { isolationLevel: "repeatable read" })
+    revalidatePath("/dashboard")
+    return log
+  }
+  if (data.programId) {
+    const [owned] = await db.select({ id: program.id }).from(program).where(and(eq(program.id, data.programId), eq(program.userId, userId)))
+    if (!owned) throw new Error("Program not found")
   }
   const [log] = await db
     .insert(workoutLog)
@@ -216,7 +258,9 @@ export async function getWorkoutWithDetails(id: number) {
     setsMap[el.id] = sets
   }
 
-  const prescriptions = log.workoutTemplateId
+  const prescriptions = log.plannedSnapshot
+    ? log.plannedSnapshot.exercises.map(({ prescription }) => ({ ...prescription, createdAt: new Date(log.plannedSnapshot!.capturedAt) }))
+    : log.workoutTemplateId
     ? await db
         .select()
         .from(templateExercise)
@@ -225,15 +269,19 @@ export async function getWorkoutWithDetails(id: number) {
 
   const prescriptionMap: Record<number, typeof templateExercise.$inferSelect> = {}
   for (const { el } of exerciseLogs) {
-    // Match the position as well as the exercise: a template can repeat a lift.
+    // Snapshot IDs distinguish repeated lifts; older logs use identity and position.
     const prescription = prescriptions.find(
-      (te) => te.exerciseId === el.exerciseId && te.orderIndex === el.orderIndex
+      (te) => el.templateExerciseId != null
+        ? te.id === el.templateExerciseId
+        : !log.plannedSnapshot && te.exerciseId === el.exerciseId && te.orderIndex === el.orderIndex
     )
     if (prescription) prescriptionMap[el.id] = prescription
   }
 
-  // Functional Fitness blocks come from the source template (display-only)
-  const functionalBlocks = log.workoutTemplateId
+  // Prefer the saved plan; older workouts still use the source template.
+  const functionalBlocks = log.plannedSnapshot
+    ? log.plannedSnapshot.functionalBlocks.map((block) => ({ ...block, createdAt: new Date(log.plannedSnapshot!.capturedAt) }))
+    : log.workoutTemplateId
     ? await db
         .select()
         .from(templateFunctionalBlock)
@@ -452,28 +500,42 @@ export async function getWorkoutLogDetail(id: number) {
 // ── Seed workout from template ────────────────────────────────────────────────
 
 export async function seedWorkoutFromTemplate(workoutLogId: number, templateId: number) {
-  await getUserId()
-  const exercises = await db
-    .select({ te: templateExercise, exercise })
-    .from(templateExercise)
-    .leftJoin(exercise, eq(templateExercise.exerciseId, exercise.id))
-    .where(eq(templateExercise.workoutTemplateId, templateId))
-    .orderBy(asc(templateExercise.orderIndex))
+  const userId = await getUserId()
+  return db.transaction(async (tx) => {
+    const [owned] = await tx.select().from(workoutLog)
+      .where(and(eq(workoutLog.id, workoutLogId), eq(workoutLog.userId, userId))).for("update")
+    if (!owned || owned.workoutTemplateId !== templateId || owned.status !== "in_progress") throw new Error("Active workout not found")
+    const existing = await tx.select().from(exerciseLog).where(eq(exerciseLog.workoutLogId, workoutLogId)).orderBy(asc(exerciseLog.orderIndex))
+    // Older clients still call this after startWorkout. New workouts are already
+    // seeded atomically; a retry must never duplicate exercises or reread edits.
+    if (owned.plannedSnapshot || existing.length) return existing
+    const [template] = await tx.select({ id: workoutTemplate.id }).from(workoutTemplate)
+      .innerJoin(program, eq(workoutTemplate.programId, program.id))
+      .where(and(eq(workoutTemplate.id, templateId), eq(program.userId, userId)))
+    if (!template) throw new Error("Workout not found")
+    const exercises = await tx
+      .select({ te: templateExercise, exercise })
+      .from(templateExercise)
+      .leftJoin(exercise, eq(templateExercise.exerciseId, exercise.id))
+      .where(eq(templateExercise.workoutTemplateId, templateId))
+      .orderBy(asc(templateExercise.orderIndex))
 
-  const result = []
-  for (let i = 0; i < exercises.length; i++) {
-    const { te } = exercises[i]
-    const [el] = await db
-      .insert(exerciseLog)
-      .values({
-        workoutLogId,
-        exerciseId: te.exerciseId,
-        freePickCriteria: te.freePickCriteria,
-        superset: te.superset,
-        orderIndex: te.orderIndex,
-      })
-      .returning()
-    result.push(el)
-  }
-  return result
+    const result = []
+    for (let i = 0; i < exercises.length; i++) {
+      const { te } = exercises[i]
+      const [el] = await tx
+        .insert(exerciseLog)
+        .values({
+          workoutLogId,
+          templateExerciseId: te.id,
+          exerciseId: te.exerciseId,
+          freePickCriteria: te.freePickCriteria,
+          superset: te.superset,
+          orderIndex: te.orderIndex,
+        })
+        .returning()
+      result.push(el)
+    }
+    return result
+  })
 }
