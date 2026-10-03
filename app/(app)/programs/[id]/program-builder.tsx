@@ -65,6 +65,8 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
     setRepsMin,
     repsMax,
     setRepsMax,
+    repsBySetText,
+    setRepsBySetText,
     weightType,
     setWeightType,
     weightValue,
@@ -206,6 +208,8 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
         setRepsMin={setRepsMin}
         repsMax={repsMax}
         setRepsMax={setRepsMax}
+        repsBySetText={repsBySetText}
+        setRepsBySetText={setRepsBySetText}
         superset={superset}
         setSuperset={setSuperset}
         totalRepsMin={totalRepsMin}

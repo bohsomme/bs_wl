@@ -112,6 +112,7 @@ export const templateExercise = pgTable("template_exercise", {
   setsMax: integer("setsMax"),
   repsMin: integer("repsMin").notNull().default(5),
   repsMax: integer("repsMax"),
+  repsBySet: jsonb("repsBySet").$type<number[]>(),
   durationSecondsMin: integer("durationSecondsMin"),
   durationSecondsMax: integer("durationSecondsMax"),
   section: text("section").notNull().default("main"),

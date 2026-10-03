@@ -3,13 +3,14 @@
 import { useState, useTransition } from "react"
 import type { Exercise } from "@/lib/db/schema"
 import { addAccessoryGroup } from "@/lib/actions/programs"
+import { parseRepsBySet } from "@/lib/prescription"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 
-const blank = () => ({ exerciseId: "", freePick: false, criteria: "", sets: "3", reps: "10", targetType: "reps", rpe: "" })
+const blank = () => ({ exerciseId: "", freePick: false, criteria: "", sets: "3", reps: "10", repsBySetText: "5, 3, 1", targetType: "reps", rpe: "" })
 
 export function AccessoryForm({ templateId, exercises, onSaved }: { templateId: number; exercises: Exercise[]; onSaved: () => Promise<void> }) {
   const [open, setOpen] = useState(false)
@@ -29,7 +30,15 @@ export function AccessoryForm({ templateId, exercises, onSaved }: { templateId: 
     startTransition(async () => {
       try {
         await addAccessoryGroup({ workoutTemplateId: templateId, superset: superset ? name.trim() : undefined,
-          exercises: rows.map((row) => ({ exerciseId: row.freePick ? null : Number(row.exerciseId), freePickCriteria: row.freePick ? row.criteria : undefined, setsMin: Number(superset ? sharedSets : row.sets), repsMin: row.targetType === "reps" ? Number(row.reps) : 1, durationSecondsMin: row.targetType === "time" ? Number(row.reps) : undefined, rpeTarget: row.rpe ? Number(row.rpe) : undefined })) })
+          exercises: rows.map((row) => ({
+            exerciseId: row.freePick ? null : Number(row.exerciseId),
+            freePickCriteria: row.freePick ? row.criteria : undefined,
+            setsMin: Number(superset ? sharedSets : row.sets),
+            repsMin: row.targetType === "per_set" ? parseRepsBySet(row.repsBySetText)[0] : row.targetType === "reps" ? Number(row.reps) : 1,
+            repsBySet: row.targetType === "per_set" ? parseRepsBySet(row.repsBySetText) : undefined,
+            durationSecondsMin: row.targetType === "time" ? Number(row.reps) : undefined,
+            rpeTarget: row.rpe ? Number(row.rpe) : undefined,
+          })) })
         await onSaved()
         setOpen(false)
       } catch (e) { setError(e instanceof Error ? e.message : "Could not save accessories.") }
@@ -51,12 +60,17 @@ export function AccessoryForm({ templateId, exercises, onSaved }: { templateId: 
             <legend className="px-1 text-sm font-medium">Exercise {i + 1}</legend>
             {superset && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={row.freePick} onChange={(e) => update(i, { freePick: e.target.checked })} />Free-pick exercise</label>}
             {row.freePick ? <div className="space-y-2"><Label htmlFor={"criteria-" + i}>Criteria</Label><Textarea id={"criteria-" + i} value={row.criteria} onChange={(e) => update(i, { criteria: e.target.value })} placeholder="e.g. Upper-body pull; use dumbbells. Enter one or more criteria." /><p className="text-xs text-muted-foreground">Choose and name the exercise during the workout.</p></div> : <div className="space-y-2"><Label htmlFor={"exercise-" + i}>Exercise</Label><select id={"exercise-" + i} className="w-full rounded-md border bg-background p-2" value={row.exerciseId} onChange={(e) => update(i, { exerciseId: e.target.value })}><option value="">Select exercise...</option>{exercises.map((ex) => <option key={ex.id} value={ex.id}>{ex.name}</option>)}</select></div>}
-            <div className="space-y-1.5"><Label htmlFor={"target-type-" + i}>Target per set</Label><select id={"target-type-" + i} className="w-full rounded-md border bg-background p-2" value={row.targetType} onChange={(e) => update(i, { targetType: e.target.value, reps: e.target.value === "time" ? "30" : "10" })}><option value="reps">Reps</option><option value="time">Time (seconds)</option></select></div>
+            <div className="space-y-1.5"><Label htmlFor={"target-type-" + i}>Target per set</Label><select id={"target-type-" + i} className="w-full rounded-md border bg-background p-2" value={row.targetType} onChange={(e) => update(i, { targetType: e.target.value, reps: e.target.value === "time" ? "30" : "10" })}><option value="reps">Reps</option><option value="per_set">Reps by set</option><option value="time">Time (seconds)</option></select></div>
             <div className="grid grid-cols-3 gap-2">
               {!superset && <div><Label htmlFor={"sets-" + i}>Sets</Label><Input id={"sets-" + i} type="number" min={1} value={row.sets} onChange={(e) => update(i, { sets: e.target.value })} /></div>}
-              <div><Label htmlFor={"reps-" + i}>{row.targetType === "time" ? "Seconds" : "Reps"}</Label><Input id={"reps-" + i} type="number" min={1} value={row.reps} onChange={(e) => update(i, { reps: e.target.value })} /></div>
+              {row.targetType !== "per_set" && <div><Label htmlFor={"reps-" + i}>{row.targetType === "time" ? "Seconds" : "Reps"}</Label><Input id={"reps-" + i} type="number" min={1} value={row.reps} onChange={(e) => update(i, { reps: e.target.value })} /></div>}
               <div><Label htmlFor={"rpe-" + i}>RPE (optional)</Label><Input id={"rpe-" + i} type="number" min={1} max={10} step="0.5" value={row.rpe} onChange={(e) => update(i, { rpe: e.target.value })} /></div>
             </div>
+            {row.targetType === "per_set" && <div className="space-y-1.5">
+              <Label htmlFor={"accessory-reps-by-set-" + i}>Reps by set</Label>
+              <Input id={"accessory-reps-by-set-" + i} value={row.repsBySetText} onChange={(e) => update(i, { repsBySetText: e.target.value })} placeholder="5, 3, 1" aria-describedby={"accessory-reps-help-" + i} />
+              <p id={"accessory-reps-help-" + i} className="text-xs text-muted-foreground">Enter one rep count for every set, separated by commas (e.g. 5, 3, 1).</p>
+            </div>}
             {superset && rows.length > 2 && <Button variant="ghost" onClick={() => setRows((prev) => prev.filter((_, index) => index !== i))}>Remove exercise</Button>}
           </fieldset>)}
           {superset && <Button variant="outline" onClick={() => setRows((prev) => [...prev, blank()])}>Add another exercise</Button>}

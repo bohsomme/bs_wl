@@ -13,7 +13,7 @@ separate runs on the same dates cannot be distinguished automatically.
 
 The versioned JSON contains:
 
-- `json_schema_version`: `1.1`. Increase this
+- `json_schema_version`: `1.2`. Increase this
   when the export structure or field meanings change.
 - `block`: program name, description, selected dates, current week count and
   calculated program end date.
@@ -29,6 +29,12 @@ Apply `migrations/007-timed-exercises.sql` for timed exercise support. Timed
 prescriptions use `duration_seconds` (a number or min/max range) and `reps: null`.
 Logged timed sets use `duration_seconds` and `reps: null`; rep-based sets have
 `duration_seconds: null`. Older snapshots without duration fields remain rep-based.
+
+Apply `migrations/008-per-set-reps.sql` for individual set targets. Choose
+**Reps by set** in the exercise or accessory editor, then enter a comma-separated
+rep count for every set (including optional sets), such as `5, 3, 1`.
+These prescriptions export `reps_by_set: [5, 3, 1]` and `reps: null`.
+Shared rep targets and older snapshots export `reps_by_set: null`.
 
 Prescriptions include ranges for sets, reps, seconds and total reps; fixed weights,
 percentage targets (including per-set ranges), target RPE, sections, supersets,

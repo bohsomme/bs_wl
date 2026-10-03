@@ -119,12 +119,12 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
     const saved = getSets(elId).find((s) => s.setNumber === lastNumber && s.isMakeup === (makeupCount > 0))
     const weight = setWeight[lastKey] ?? saved?.weight ?? defaultWeight(elId, lastNumber)
     const te = initialDetails.prescriptionMap[elId]
-    const target = te ? exerciseTarget(te) : undefined
+    const target = te ? exerciseTarget(te, makeupCount > 0 ? Infinity : lastNumber) : undefined
     const reps = setQuantity[lastKey] ?? (target?.timed ? saved?.durationSeconds : saved?.reps)?.toString() ?? target?.min.toString() ?? ""
     if (lastNumber > 0 && weight.trim() !== "" && reps.trim() !== "") {
       const key = setKey(elId, count + 1)
       setSetWeight((prev) => ({ ...prev, [key]: weight }))
-      setSetQuantity((prev) => ({ ...prev, [key]: reps }))
+      setSetQuantity((prev) => ({ ...prev, [key]: te?.repsBySet?.[count] != null ? String(te.repsBySet[count]) : reps }))
     }
     setWorkingSets((prev) => ({ ...prev, [elId]: count + 1 }))
   }
@@ -169,7 +169,7 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
     const k = setKey(elId, setNum, isMakeup)
     const saved = getSets(elId).find((s) => s.setNumber === setNum && s.isMakeup === isMakeup)
     const te = initialDetails.prescriptionMap[elId]
-    const quantityTarget = te ? exerciseTarget(te) : undefined
+    const quantityTarget = te ? exerciseTarget(te, isMakeup ? Infinity : setNum) : undefined
     const reps = setQuantity[k] ?? (quantityTarget?.timed ? saved?.durationSeconds : saved?.reps)?.toString() ?? quantityTarget?.min.toString() ?? ""
     if (quantityTarget?.timed && reps.trim() === "") {
       setSaveError("Enter the time in seconds before saving this set.")

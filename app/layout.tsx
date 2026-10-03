@@ -3,6 +3,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next"
 import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import Script from "next/script"
+import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
 
 const GA_MEASUREMENT_ID = "G-VF88LC5ERC"
@@ -29,9 +30,12 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="bg-background">
+    <html lang="en" className="bg-background" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `(function(){var theme="system";try{theme=localStorage.getItem("bs-wl-theme")||"system"}catch(e){}var dark=theme==="dark"||(theme!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.add(dark?"dark":"light")})()` }} />
+      </head>
       <body className={`${inter.className} antialiased`}>
-        {children}
+        <ThemeProvider>{children}</ThemeProvider>
         {process.env.NODE_ENV === "production" && (
           <>
             <Analytics />

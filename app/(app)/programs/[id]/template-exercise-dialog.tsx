@@ -44,6 +44,8 @@ interface TemplateExerciseDialogProps {
   setRepsMin: Dispatch<SetStateAction<string>>
   repsMax: string
   setRepsMax: Dispatch<SetStateAction<string>>
+  repsBySetText: string
+  setRepsBySetText: Dispatch<SetStateAction<string>>
   superset: string
   setSuperset: Dispatch<SetStateAction<string>>
   totalRepsMin: string
@@ -87,6 +89,8 @@ export function TemplateExerciseDialog({
   setRepsMin,
   repsMax,
   setRepsMax,
+  repsBySetText,
+  setRepsBySetText,
   superset,
   setSuperset,
   totalRepsMin,
@@ -144,7 +148,7 @@ export function TemplateExerciseDialog({
           <div className="space-y-1.5">
             <Label htmlFor="exercise-target-type">Target per set</Label>
             <select id="exercise-target-type" className="w-full rounded-md border bg-background p-2" value={targetType} onChange={(e) => { setTargetType(e.target.value); setRepsMin(e.target.value === "time" ? "30" : "5"); setRepsMax("") }}>
-              <option value="reps">Reps</option><option value="time">Time (seconds)</option>
+              <option value="reps">Reps</option><option value="per_set">Reps by set</option><option value="time">Time (seconds)</option>
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -156,21 +160,26 @@ export function TemplateExerciseDialog({
               <Label>Sets (max, optional)</Label>
               <Input type="number" min={1} placeholder="Same as min" value={setsMax} onChange={(e) => setSetsMax(e.target.value)} />
             </div>
-            <div className="space-y-1.5">
+            {targetType !== "per_set" && <><div className="space-y-1.5">
               <Label>{targetType === "time" ? "Seconds (min)" : "Reps (min)"}</Label>
               <Input type="number" min={1} value={repsMin} onChange={(e) => setRepsMin(e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label>{targetType === "time" ? "Seconds (max, optional)" : "Reps (max, optional)"}</Label>
               <Input type="number" min={1} placeholder="Same as min" value={repsMax} onChange={(e) => setRepsMax(e.target.value)} />
-            </div>
+            </div></>}
           </div>
+          {targetType === "per_set" && <div className="space-y-1.5">
+            <Label htmlFor="reps-by-set">Reps by set</Label>
+            <Input id="reps-by-set" value={repsBySetText} onChange={(e) => setRepsBySetText(e.target.value)} placeholder="5, 3, 1" aria-describedby="reps-by-set-help" />
+            <p id="reps-by-set-help" className="text-xs text-muted-foreground">Enter one rep count for every set, including optional sets, separated by commas. For example: 5, 3, 1 means set 1: 5 reps, set 2: 3 reps, set 3: 1 rep.</p>
+          </div>}
 
           {section === "accessory" && <div className="space-y-1.5">
             <Label htmlFor="superset">Superset name (optional)</Label>
             <Input id="superset" placeholder="Use the same name for 2+ exercises" value={superset} onChange={(e) => setSuperset(e.target.value)} />
           </div>}
-          {section === "main" && targetType === "reps" && <div className="grid grid-cols-2 gap-3">
+          {section === "main" && targetType !== "time" && <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5"><Label htmlFor="total-reps-min">Total reps (min, optional)</Label><Input id="total-reps-min" type="number" min={1} value={totalRepsMin} onChange={(e) => setTotalRepsMin(e.target.value)} /></div>
             <div className="space-y-1.5"><Label htmlFor="total-reps-max">Total reps (max, optional)</Label><Input id="total-reps-max" type="number" min={1} placeholder="Same as min" value={totalRepsMax} onChange={(e) => setTotalRepsMax(e.target.value)} /></div>
           </div>}

@@ -86,7 +86,6 @@ export function WorkoutExerciseCard({
   setExNotes,
   saveExerciseNotes,
 }: WorkoutExerciseCardProps) {
-  const target = te ? exerciseTarget(te) : undefined
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -147,6 +146,7 @@ export function WorkoutExerciseCard({
             }
             while (nextMakeup <= extraMakeupCount) rows.push({ isMakeup: true, n: nextMakeup++ })
             return rows.map(({ isMakeup, n }) => {
+            const target = te ? exerciseTarget(te, isMakeup ? Infinity : n) : undefined
             const k = setKey(elId, n, isMakeup)
             const saved = savedSets.find((s) => s.setNumber === n && s.isMakeup === isMakeup)
             return (
@@ -167,7 +167,7 @@ export function WorkoutExerciseCard({
                       onChange={(e) => setSetWeight((prev) => ({ ...prev, [k]: e.target.value }))} disabled={pending} />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor={"reps-" + k} className="text-xs">{target?.timed ? "Seconds" : "Reps"}{target ? " (" + range(target.min, target.max) + ")" : ""}</Label>
+                    <Label htmlFor={"reps-" + k} className="text-xs">{target?.timed ? "Seconds" : "Reps"}{target && !(isMakeup && te?.repsBySet?.length) ? " (" + range(target.min, target.max) + ")" : ""}</Label>
                     <Input id={"reps-" + k} type="number" min={0} step={1} placeholder={target?.timed ? "seconds" : "reps"} className="h-9 px-2"
                       value={setQuantity[k] ?? (target?.timed ? saved?.durationSeconds : saved?.reps)?.toString() ?? target?.min.toString() ?? ""}
                       onChange={(e) => setSetQuantity((prev) => ({ ...prev, [k]: e.target.value }))} disabled={pending} />

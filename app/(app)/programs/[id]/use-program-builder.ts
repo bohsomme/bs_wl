@@ -16,7 +16,7 @@ import {
 } from "@/lib/actions/programs"
 import type { TemplateExercise, TemplateFunctionalBlock, WorkoutTemplate } from "@/lib/db/schema"
 import { type FunctionalKind } from "@/lib/functional-fitness"
-import { formatTarget, parsePercentages } from "@/lib/prescription"
+import { formatTarget, parsePercentages, parseRepsBySet } from "@/lib/prescription"
 import { useState, useTransition } from "react"
 import type { ProgramBuilderProps, TemplateExerciseRow } from "./program-types"
 
@@ -59,6 +59,7 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
   const [targetType, setTargetType] = useState("reps")
   const [repsMin, setRepsMin] = useState("5")
   const [repsMax, setRepsMax] = useState("")
+  const [repsBySetText, setRepsBySetText] = useState("5, 3, 1")
   const [weightType, setWeightType] = useState("fixed")
   const [weightValue, setWeightValue] = useState("")
   const [rpeTarget, setRpeTarget] = useState("")
@@ -170,9 +171,12 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
   }
 
   const validCount = (value: string) => value.trim() !== "" && Number.isInteger(Number(value)) && Number(value) >= 1
-  const validPrescription = validCount(setsMin) && validCount(repsMin)
+  let validPerSetReps = false
+  try { validPerSetReps = parseRepsBySet(repsBySetText).length === Number(setsMax || setsMin) } catch {}
+  const validPrescription = validCount(setsMin)
     && (setsMax === "" || (validCount(setsMax) && Number(setsMax) >= Number(setsMin)))
-    && (repsMax === "" || (validCount(repsMax) && Number(repsMax) >= Number(repsMin)))
+    && (targetType === "per_set" ? validPerSetReps : validCount(repsMin)
+      && (repsMax === "" || (validCount(repsMax) && Number(repsMax) >= Number(repsMin))))
 
   function handleAddExercise() {
     if ((!selectedExId && !editingExercise?.freePickCriteria) || !selectedTemplate || !validPrescription) return
@@ -183,13 +187,14 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
           freePickCriteria: selectedExId ? null : editingExercise?.freePickCriteria,
           section,
           superset: section === "accessory" ? superset.trim() || undefined : undefined,
-          totalRepsMin: targetType === "reps" && totalRepsMin ? Number(totalRepsMin) : undefined,
-          totalRepsMax: targetType === "reps" && totalRepsMax ? Number(totalRepsMax) : undefined,
+          totalRepsMin: targetType !== "time" && totalRepsMin ? Number(totalRepsMin) : undefined,
+          totalRepsMax: targetType !== "time" && totalRepsMax ? Number(totalRepsMax) : undefined,
           percentages: weightType === "pb_percent" ? parsePercentages(percentText) : undefined,
           setsMin: Number(setsMin),
           setsMax: setsMax ? Number(setsMax) : undefined,
-          repsMin: targetType === "reps" ? Number(repsMin) : 1,
+          repsMin: targetType === "per_set" ? parseRepsBySet(repsBySetText)[0] : targetType === "reps" ? Number(repsMin) : 1,
           repsMax: targetType === "reps" && repsMax ? Number(repsMax) : undefined,
+          repsBySet: targetType === "per_set" ? parseRepsBySet(repsBySetText) : undefined,
           durationSecondsMin: targetType === "time" ? Number(repsMin) : undefined,
           durationSecondsMax: targetType === "time" && repsMax ? Number(repsMax) : undefined,
           weightType,
@@ -206,6 +211,7 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
             percentages: data.percentages ?? null,
             setsMax: data.setsMax ?? null,
             repsMax: data.repsMax ?? null,
+            repsBySet: data.repsBySet ?? null,
             durationSecondsMin: data.durationSecondsMin ?? null,
             durationSecondsMax: data.durationSecondsMax ?? null,
             weightValue: weightType === "fixed" ? data.weightValue ?? null : null,
@@ -260,6 +266,7 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
     setTargetType("reps")
     setRepsMin("5")
     setRepsMax("")
+    setRepsBySetText("5, 3, 1")
     setWeightType("fixed")
     setWeightValue("")
     setRpeTarget("")
@@ -274,7 +281,8 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
     setSuperset(te.superset ?? "")
     setSetsMin(String(te.setsMin))
     setSetsMax(te.setsMax == null ? "" : String(te.setsMax))
-    setTargetType(te.durationSecondsMin != null ? "time" : "reps")
+    setTargetType(te.durationSecondsMin != null ? "time" : te.repsBySet?.length ? "per_set" : "reps")
+    setRepsBySetText(te.repsBySet?.join(", ") ?? "5, 3, 1")
     setRepsMin(String(te.durationSecondsMin ?? te.repsMin))
     const max = te.durationSecondsMin != null ? te.durationSecondsMax : te.repsMax
     setRepsMax(max == null ? "" : String(max))
@@ -377,6 +385,8 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
     setRepsMin,
     repsMax,
     setRepsMax,
+    repsBySetText,
+    setRepsBySetText,
     weightType,
     setWeightType,
     weightValue,

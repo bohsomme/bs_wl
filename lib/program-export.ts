@@ -42,7 +42,8 @@ function plannedExercise(row: WorkoutPlan["exercises"][number]) {
     section: p.section,
     superset: p.superset,
     sets: rangeValue(p.setsMin, p.setsMax),
-    reps: p.durationSecondsMin != null ? null : rangeValue(p.repsMin, p.repsMax),
+    reps: p.durationSecondsMin != null || p.repsBySet?.length ? null : rangeValue(p.repsMin, p.repsMax),
+    reps_by_set: p.repsBySet ?? null,
     duration_seconds: rangeValue(p.durationSecondsMin ?? null, p.durationSecondsMax ?? null),
     total_reps: rangeValue(p.totalRepsMin, p.totalRepsMax),
     weight_type: p.weightType,
@@ -168,7 +169,7 @@ export function buildProgramExport(data: ExportData) {
   })
 
   return {
-    json_schema_version: 1.1,
+    json_schema_version: 1.2,
     exported_at: (data.exportedAt ?? new Date()).toISOString(),
     block: {
       program_id: program.id, name: program.name, description: program.description,
@@ -181,6 +182,7 @@ export function buildProgramExport(data: ExportData) {
       units: { weight: "kg", exercise_duration: "seconds", functional_duration: "minutes" },
       ratings: "Readiness and bar feel are self-reported, currently 1–5. Legacy readiness may use 1–10; its original scale was not stored. RPE is 1–10.",
       percentages: "Percentages apply to the reference estimated 1RM. A single target repeats for all sets; multiple targets are ordered by working-set number. min/max are inclusive. Historical 1RM is only available in workout snapshots.",
+      reps_by_set: "Ordered rep targets by working-set number, including optional sets. When present, the shared reps field is null.",
       sets: "Only saved sets are exported, ordered by creation time. Working and makeup sets have separate set numbers. Missed sets do not record successful rep counts. No-log matches do not imply an exercise was skipped.",
       missing_values: "null means unknown or not recorded. WHOOP, a separate goal, exercise variation and successful_reps are not tracked; see description, exercise names and missed flags instead.",
       warnings: [...warnings],

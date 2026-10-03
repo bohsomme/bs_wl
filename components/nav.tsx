@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { BrandLogo } from "@/components/brand-logo"
+import { useTheme } from "@/components/theme-provider"
 import { usePathname, useRouter } from "next/navigation"
 import { authClient } from "@/lib/auth-client"
 import { Button } from "@/components/ui/button"
@@ -9,11 +10,15 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
-import { Dumbbell, LayoutDashboard, BookOpen, Trophy, ClipboardList, User, LogOut } from "lucide-react"
+import { Dumbbell, LayoutDashboard, BookOpen, Trophy, ClipboardList, LogOut, Sun, Moon, Monitor } from "lucide-react"
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
@@ -29,6 +34,7 @@ interface NavProps {
 export function Nav({ userName }: NavProps) {
   const pathname = usePathname()
   const router = useRouter()
+  const { theme, setTheme } = useTheme()
 
   async function handleSignOut() {
     await authClient.signOut()
@@ -81,6 +87,15 @@ export function Nav({ userName }: NavProps) {
               <Trophy className="w-4 h-4 mr-2" />
               Personal Bests
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Theme</DropdownMenuLabel>
+              <DropdownMenuRadioGroup value={theme} onValueChange={(value) => { if (value === "light" || value === "dark" || value === "system") setTheme(value) }}>
+                <DropdownMenuRadioItem value="light"><Sun className="size-4" />Light</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="dark"><Moon className="size-4" />Dark</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="system"><Monitor className="size-4" />System</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
               <LogOut className="w-4 h-4 mr-2" />
