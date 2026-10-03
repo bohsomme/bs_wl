@@ -10,6 +10,7 @@ import {
 import { exerciseTarget, percentageAt, weightTarget } from "@/lib/prescription"
 import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
+import { groupWorkoutExercises } from "./workout-exercise-groups"
 import type { ExerciseLogRow, Phase, WorkoutSessionProps } from "./workout-types"
 
 export function useWorkoutSession({ details: initialDetails, exercises, pbWeights }: WorkoutSessionProps) {
@@ -24,7 +25,7 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
   const [functionalNotesStatus, setFunctionalNotesStatus] = useState("")
 
   const [phase, setPhase] = useState<Phase>("readiness")
-  const [currentExIdx, setCurrentExIdx] = useState(0)
+  const [currentGroupIdx, setCurrentGroupIdx] = useState(0)
 
   // Readiness phase state
   const [readiness, setReadiness] = useState(log.readiness != null && log.readiness <= 5 ? String(log.readiness) : "")
@@ -59,7 +60,8 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
   // Miss reason modal
   const [missModalKey, setMissModalKey] = useState<string | null>(null)
 
-  const currentRow = exerciseLogs[currentExIdx]
+  const exerciseGroups = groupWorkoutExercises(exerciseLogs, initialDetails.prescriptionMap)
+  const currentRows = exerciseGroups[currentGroupIdx] ?? []
 
   function setKey(elId: number, setNum: number, isMakeup = false) {
     return `${elId}-${setNum}-${isMakeup ? "m" : "w"}`
@@ -222,7 +224,8 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
       setExerciseLogs((prev) =>
         prev.map((r) => r.el.id === row.el.id ? { ...r, el: { ...r.el, skipped: true } } : r)
       )
-      advanceExercise()
+      // Skipping one member must leave the other superset exercises available.
+      if (currentRows.every((member) => member.el.id === row.el.id || member.el.skipped)) advanceExercise()
     })
   }
 
@@ -238,11 +241,21 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
   }
 
   function advanceExercise() {
-    if (currentExIdx < exerciseLogs.length - 1) {
-      setCurrentExIdx((i) => i + 1)
+    saveCurrentExerciseNotes()
+    if (currentGroupIdx < exerciseGroups.length - 1) {
+      setCurrentGroupIdx((i) => i + 1)
     } else {
       setPhase("finish")
     }
+  }
+
+  function saveCurrentExerciseNotes() {
+    currentRows.forEach(saveExerciseNotes)
+  }
+
+  function selectExerciseGroup(index: number) {
+    saveCurrentExerciseNotes()
+    setCurrentGroupIdx(index)
   }
 
   async function handleAddExercise() {
@@ -258,7 +271,8 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
       const ex = localExercises.find((e) => e.id === selectedAddExId)!
       setExerciseLogs((prev) => [...prev, { el, exercise: ex }])
       setSetsMap((prev) => ({ ...prev, [el.id]: [] }))
-      setCurrentExIdx(exerciseLogs.length)
+      saveCurrentExerciseNotes()
+      setCurrentGroupIdx(exerciseGroups.length)
       setPhase("exercises")
       setAddExOpen(false)
       setSelectedAddExId(null)
@@ -319,8 +333,10 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
     setFunctionalNotesStatus,
     phase,
     setPhase,
-    currentExIdx,
-    setCurrentExIdx,
+    currentGroupIdx,
+    exerciseGroups,
+    selectExerciseGroup,
+    saveCurrentExerciseNotes,
     readiness,
     setReadiness,
     barFeel,
@@ -360,7 +376,7 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
     localExercises,
     missModalKey,
     setMissModalKey,
-    currentRow,
+    currentRows,
     setKey,
     getSets,
     numSets,

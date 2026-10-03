@@ -35,8 +35,10 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
     setFunctionalNotesStatus,
     phase,
     setPhase,
-    currentExIdx,
-    setCurrentExIdx,
+    currentGroupIdx,
+    exerciseGroups,
+    selectExerciseGroup,
+    saveCurrentExerciseNotes,
     readiness,
     setReadiness,
     barFeel,
@@ -76,7 +78,7 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
     localExercises,
     missModalKey,
     setMissModalKey,
-    currentRow,
+    currentRows,
     setKey,
     getSets,
     numSets,
@@ -232,7 +234,7 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
 
   // ── Exercises Phase ──────────────────────────────────────────────────────
 
-  if (!currentRow) {
+  if (currentRows.length === 0) {
     return (
       <div className="max-w-2xl mx-auto space-y-4">
         {functionalBlocks.length > 0 && (
@@ -250,28 +252,20 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
     )
   }
 
-  const elId = currentRow.el.id
-  const te = initialDetails.prescriptionMap[elId]
-  const totalSets = numSets(currentRow)
-  const extraMakeupCount = Math.max(makeupSets[elId] ?? 0, ...getSets(elId).filter((s) => s.isMakeup).map((s) => s.setNumber))
   const range = (min: number, max: number | null) => max != null && max !== min ? min + "-" + max : String(min)
-  const completedSets = getSets(elId).filter((set) => !set.isMakeup)
-  const completedReps = getSets(elId).reduce((sum, set) => sum + (set.reps ?? 0), 0)
-  const weightHint = te?.weightType === "pb_percent"
-    ? (te.percentages?.map(formatTarget).join(", ") ?? te.weightValue ?? "") + "% of PB"
-    : te?.weightType === "rpe" ? "RPE " + (te.rpeTarget ?? "not set") : "kg"
+  const superset = initialDetails.prescriptionMap[currentRows[0].el.id]?.superset ?? currentRows[0].el.superset
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => setPhase("readiness")}>
+        <Button variant="ghost" size="icon" onClick={() => { saveCurrentExerciseNotes(); setPhase("readiness") }}>
           <ChevronLeft className="w-5 h-5" />
         </Button>
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold truncate">{log.name}</h1>
           <p className="text-sm text-muted-foreground">
-            Exercise {currentExIdx + 1} of {exerciseLogs.length}
+            {exerciseGroups.some((group) => group.length > 1) ? "Exercise group" : "Exercise"} {currentGroupIdx + 1} of {exerciseGroups.length}
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => setAddExOpen(true)} className="gap-1.5">
@@ -283,75 +277,94 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
 
       {/* Progress indicator */}
       <div className="flex gap-1">
-        {exerciseLogs.map((r, i) => (
+        {exerciseGroups.map((group, i) => (
           <button
-            key={r.el.id}
-            onClick={() => { saveExerciseNotes(currentRow); setCurrentExIdx(i) }}
+            key={group[0].el.id}
+            aria-label={group.map((row) => row.exercise?.name ?? chosenNames[row.el.id] ?? row.el.exerciseName ?? "Free-pick exercise").join(" / ")}
+            aria-current={i === currentGroupIdx ? "step" : undefined}
+            onClick={() => selectExerciseGroup(i)}
             className={cn(
               "h-1.5 flex-1 rounded-full transition-colors",
-              i === currentExIdx ? "bg-primary" :
-                r.el.skipped ? "bg-muted-foreground/30" :
-                  i < currentExIdx ? "bg-primary/50" : "bg-border"
+              i === currentGroupIdx ? "bg-primary" :
+                group.every((row) => row.el.skipped) ? "bg-muted-foreground/30" :
+                  i < currentGroupIdx ? "bg-primary/50" : "bg-border"
             )}
           />
         ))}
       </div>
 
-      {/* Exercise Card */}
-      <WorkoutExerciseCard
-        te={te}
-        currentRow={currentRow}
-        chosenNames={chosenNames}
-        elId={elId}
-        setChosenNames={setChosenNames}
-        skipExercise={skipExercise}
-        range={range}
-        weightHint={weightHint}
-        completedSets={completedSets}
-        completedReps={completedReps}
-        saveError={saveError}
-        totalSets={totalSets}
-        extraMakeupCount={extraMakeupCount}
-        setKey={setKey}
-        getSets={getSets}
-        suggestedWeight={suggestedWeight}
-        setWeight={setWeight}
-        defaultWeight={defaultWeight}
-        setSetWeight={setSetWeight}
-        pending={pending}
-        setQuantity={setQuantity}
-        setSetQuantity={setSetQuantity}
-        saveSet={saveSet}
-        setMissModalKey={setMissModalKey}
-        addSet={addSet}
-        removeSet={removeSet}
-        setExRpe={setExRpe}
-        exRpe={exRpe}
-        exNotes={exNotes}
-        setExNotes={setExNotes}
-        saveExerciseNotes={saveExerciseNotes}
-      />
+      {currentRows.length > 1 && <div className="space-y-1">
+        <h2 className="font-semibold">Superset: {superset}</h2>
+        <p className="text-sm text-muted-foreground">Alternate exercises each round. Log each exercise below.</p>
+      </div>}
+
+      {currentRows.map((currentRow) => {
+        const elId = currentRow.el.id
+        const te = initialDetails.prescriptionMap[elId]
+        const totalSets = numSets(currentRow)
+        const extraMakeupCount = Math.max(makeupSets[elId] ?? 0, ...getSets(elId).filter((s) => s.isMakeup).map((s) => s.setNumber))
+        const completedSets = getSets(elId).filter((set) => !set.isMakeup)
+        const completedReps = getSets(elId).reduce((sum, set) => sum + (set.reps ?? 0), 0)
+        const weightHint = te?.weightType === "pb_percent"
+          ? (te.percentages?.map(formatTarget).join(", ") ?? te.weightValue ?? "") + "% of PB"
+          : te?.weightType === "rpe" ? "RPE " + (te.rpeTarget ?? "not set") : "kg"
+
+        return <WorkoutExerciseCard
+          key={elId}
+          te={te}
+          currentRow={currentRow}
+          chosenNames={chosenNames}
+          elId={elId}
+          setChosenNames={setChosenNames}
+          skipExercise={skipExercise}
+          range={range}
+          weightHint={weightHint}
+          completedSets={completedSets}
+          completedReps={completedReps}
+          saveError={saveError}
+          totalSets={totalSets}
+          extraMakeupCount={extraMakeupCount}
+          setKey={setKey}
+          getSets={getSets}
+          suggestedWeight={suggestedWeight}
+          setWeight={setWeight}
+          defaultWeight={defaultWeight}
+          setSetWeight={setSetWeight}
+          pending={pending}
+          setQuantity={setQuantity}
+          setSetQuantity={setSetQuantity}
+          saveSet={saveSet}
+          setMissModalKey={setMissModalKey}
+          addSet={addSet}
+          removeSet={removeSet}
+          setExRpe={setExRpe}
+          exRpe={exRpe}
+          exNotes={exNotes}
+          setExNotes={setExNotes}
+          saveExerciseNotes={saveExerciseNotes}
+        />
+      })}
 
       {/* Navigation */}
       <div className="flex justify-between gap-3">
         <Button
           variant="outline"
-          onClick={() => { saveExerciseNotes(currentRow); setCurrentExIdx((i) => Math.max(0, i - 1)) }}
-          disabled={currentExIdx === 0}
+          onClick={() => selectExerciseGroup(Math.max(0, currentGroupIdx - 1))}
+          disabled={currentGroupIdx === 0}
           className="gap-1.5"
         >
           <ChevronLeft className="w-4 h-4" /> Previous
         </Button>
-        {currentExIdx < exerciseLogs.length - 1 ? (
+        {currentGroupIdx < exerciseGroups.length - 1 ? (
           <Button
-            onClick={() => { saveExerciseNotes(currentRow); advanceExercise() }}
+            onClick={advanceExercise}
             className="gap-1.5"
           >
             Next <ChevronRight className="w-4 h-4" />
           </Button>
         ) : (
           <Button
-            onClick={() => { saveExerciseNotes(currentRow); setPhase("finish") }}
+            onClick={advanceExercise}
             className="gap-1.5"
           >
             <CheckCircle2 className="w-4 h-4" /> Finish
@@ -363,10 +376,11 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
         <h2 className="font-semibold">Accessories</h2>
         {Array.from(new Set(exerciseLogs.filter((row) => initialDetails.prescriptionMap[row.el.id]?.section === "accessory").map((row) => initialDetails.prescriptionMap[row.el.id].superset ?? ""))).map((group) => <div key={group} className="rounded-lg border p-3 space-y-2">
           {group && <p className="text-sm font-medium">Superset: {group} - alternate exercises each round</p>}
-          {exerciseLogs.map((row, index) => {
+          {exerciseLogs.map((row) => {
             const prescription = initialDetails.prescriptionMap[row.el.id]
             if (prescription?.section !== "accessory" || (prescription.superset ?? "") !== group) return null
-            return <button key={row.el.id} type="button" onClick={() => { saveExerciseNotes(currentRow); setCurrentExIdx(index) }} className={cn("block w-full rounded-md p-2 text-left hover:bg-accent", index === currentExIdx && "bg-accent")}>
+            const groupIndex = exerciseGroups.findIndex((members) => members.some((member) => member.el.id === row.el.id))
+            return <button key={row.el.id} type="button" onClick={() => selectExerciseGroup(groupIndex)} className={cn("block w-full rounded-md p-2 text-left hover:bg-accent", groupIndex === currentGroupIdx && "bg-accent")}>
               <p className="text-sm font-medium">{row.exercise?.name ?? chosenNames[row.el.id] ?? row.el.exerciseName ?? "Free-pick exercise"}</p>
               <p className="text-xs text-muted-foreground">{range(prescription.setsMin, prescription.setsMax)} sets &times; {describeExerciseTarget(prescription)}{prescription.rpeTarget ? " | RPE " + prescription.rpeTarget : ""} | {getSets(row.el.id).filter((set) => !set.isMakeup).length} sets saved</p>
             </button>

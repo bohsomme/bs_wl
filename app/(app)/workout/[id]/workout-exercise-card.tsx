@@ -91,15 +91,16 @@ export function WorkoutExerciseCard({
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs text-muted-foreground">{te?.section === "accessory" ? "Accessories" + (te.superset ? " / Superset: " + te.superset : "") : "Main exercises"}</p>
             {currentRow.el.exerciseId == null && <div className="space-y-2 mb-3">
               <p className="text-sm whitespace-pre-wrap">Free-pick criteria: {currentRow.el.freePickCriteria}</p>
-              <Label htmlFor="chosen-exercise">Exercise you chose</Label>
-              <Input id="chosen-exercise" placeholder="Enter exercise name" value={chosenNames[elId] ?? currentRow.el.exerciseName ?? ""} onChange={(e) => setChosenNames((prev) => ({ ...prev, [elId]: e.target.value }))} />
+              <Label htmlFor={"chosen-exercise-" + elId}>Exercise you chose</Label>
+              <Input id={"chosen-exercise-" + elId} placeholder="Enter exercise name" value={chosenNames[elId] ?? currentRow.el.exerciseName ?? ""} onChange={(e) => setChosenNames((prev) => ({ ...prev, [elId]: e.target.value }))} />
               <p className="text-xs text-muted-foreground">Saved with each set in this workout log.</p>
             </div>}
             <CardTitle className="text-lg">{currentRow.exercise?.name ?? chosenNames[elId] ?? currentRow.el.exerciseName ?? "Free-pick exercise"}</CardTitle>
+            {te?.notes && <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted-foreground">{te.notes}</p>}
             {currentRow.exercise?.muscleGroup && (
               <Badge variant="secondary" className="text-xs mt-1">{currentRow.exercise?.muscleGroup}</Badge>
             )}
@@ -107,10 +108,11 @@ export function WorkoutExerciseCard({
           <Button
             variant="ghost"
             size="sm"
-            className="text-muted-foreground gap-1.5"
+            className="shrink-0 text-muted-foreground gap-1.5"
+            disabled={pending || currentRow.el.skipped}
             onClick={() => skipExercise(currentRow)}
           >
-            <SkipForward className="w-3.5 h-3.5" /> Skip
+            <SkipForward className="w-3.5 h-3.5" /> {currentRow.el.skipped ? "Skipped" : "Skip"}
           </Button>
         </div>
       </CardHeader>
