@@ -4,9 +4,12 @@ export const translations = {
   en: {
     appComingSoon: "App coming soon",
     goToApp: "Go to app",
-    tagline: "Elevate Your Weightlifting",
+    tagline: "BS-WL Weightlifting Coaching",
     subtitle:
       "Whether you're a dedicated weightlifter or train functional fitness, choose the program that fits your goals and start training with a dedicated coach.",
+    coachTitle: "Train with Børge Sømme",
+    coachDescription:
+      "BS-WL, also known as BS Weightlifting, offers weightlifting coaching with Børge Olsen-Hagen Sømme. Choose a structured program or personalized training, with direct coach contact and video review of your lifts.",
     option1Title: "BS-WL Standard",
     option1Badge: "Most Popular",
     option1Price: "250 NOK",
@@ -47,9 +50,12 @@ export const translations = {
   no: {
     appComingSoon: "App kommer snart",
     goToApp: "Åpne appen",
-    tagline: "Løft Vektløftingen Din",
+    tagline: "BS-WL Vektløfting og Coaching",
     subtitle:
       "Enten du er dedikert vektløfter eller trener funksjonell fitness, velg programmet som passer dine mål og begynn å trene med en dedikert coach.",
+    coachTitle: "Tren med Børge Sømme",
+    coachDescription:
+      "BS-WL, også kjent som BS Weightlifting, tilbyr vektløftingscoaching med Børge Olsen-Hagen Sømme. Velg et strukturert program eller personlig tilpasset trening, med direkte kontakt med coach og videoanalyse av løftene dine.",
     option1Title: "BS-WL Standard",
     option1Badge: "Mest populær",
     option1Price: "250 NOK",

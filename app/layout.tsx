@@ -4,6 +4,7 @@ import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import Script from "next/script"
 import { ThemeProvider } from "@/components/theme-provider"
+import { siteUrl } from "@/lib/site"
 import "./globals.css"
 
 const GA_MEASUREMENT_ID = "G-VF88LC5ERC"
@@ -11,9 +12,9 @@ const GA_MEASUREMENT_ID = "G-VF88LC5ERC"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
+  metadataBase: siteUrl,
   title: "BS Weightlifting",
   description: "Track your weightlifting programs, workouts, and personal bests.",
-  generator: "v0.app",
   icons: {
     icon: "/wl_f_logo.png",
     apple: "/wl_f_logo.png",

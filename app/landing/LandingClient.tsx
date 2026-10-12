@@ -133,6 +133,10 @@ export function LandingClient({ isAuthenticated = false }: { isAuthenticated?: b
             </div>
           </article>
         </div>
+        <section id="coach" aria-labelledby="coach-heading" className="mx-auto mt-16 max-w-2xl text-center">
+          <h2 id="coach-heading" className="text-2xl font-semibold tracking-tight">{t.coachTitle}</h2>
+          <p className="mt-4 text-base leading-relaxed text-muted-foreground">{t.coachDescription}</p>
+        </section>
       </main>
 
       <SignupModal
