@@ -8,6 +8,7 @@ import {
   upsertSetLog,
 } from "@/lib/actions/workouts"
 import { exerciseTarget, percentageAt, weightTarget } from "@/lib/prescription"
+import { validateSetLog } from "@/lib/set-log-validation"
 import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
 import { groupWorkoutExercises } from "./workout-exercise-groups"
@@ -170,33 +171,39 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
     const saved = getSets(elId).find((s) => s.setNumber === setNum && s.isMakeup === isMakeup)
     const te = initialDetails.prescriptionMap[elId]
     const quantityTarget = te ? exerciseTarget(te, isMakeup ? Infinity : setNum) : undefined
-    const reps = setQuantity[k] ?? (quantityTarget?.timed ? saved?.durationSeconds : saved?.reps)?.toString() ?? quantityTarget?.min.toString() ?? ""
+    const reps = (setQuantity[k] ?? (quantityTarget?.timed ? saved?.durationSeconds : saved?.reps)?.toString() ?? quantityTarget?.min.toString() ?? "").trim()
     if (quantityTarget?.timed && reps.trim() === "") {
       setSaveError("Enter the time in seconds before saving this set.")
       return
     }
-    const weight = setWeight[k] ?? saved?.weight ?? defaultWeight(elId, setNum)
+    const weight = (setWeight[k] ?? saved?.weight ?? defaultWeight(elId, setNum)).trim()
     const target = te?.weightType === "pb_percent" ? percentageAt(te, setNum) : undefined
     if (!missed && target?.max != null && target.max !== target.min && weight.trim() === "") {
       setSaveError("Enter one weight in kg before saving this set.")
       return
     }
-    if ((reps !== "" && (!Number.isInteger(Number(reps)) || Number(reps) < 0)) ||
-      (weight !== "" && (!Number.isFinite(Number(weight)) || Number(weight) < 0))) {
-      setSaveError(`Enter a valid weight and whole-number ${quantityTarget?.timed ? "seconds" : "reps"}, both zero or greater.`)
+    const row = exerciseLogs.find((row) => row.el.id === elId)
+    const data = {
+      exerciseName: chosenNames[elId] ?? row?.el.exerciseName ?? undefined,
+      exerciseLogId: elId, setNumber: setNum, isMakeup,
+      reps: quantityTarget?.timed || reps === "" ? undefined : Number(reps),
+      durationSeconds: quantityTarget?.timed ? Number(reps) : undefined,
+      weight: weight === "" ? undefined : Number(weight),
+      missed, missReason: missReason[k] ?? saved?.missReason ?? undefined,
+    }
+    const validationError = validateSetLog(data, row != null && row.el.exerciseId == null)
+    if (validationError) {
+      setSaveError(validationError)
       return
     }
     startTransition(async () => {
       setSaveError(null)
       try {
-        const result = await upsertSetLog({
-          exerciseName: chosenNames[elId] ?? exerciseLogs.find((row) => row.el.id === elId)?.el.exerciseName ?? undefined,
-          exerciseLogId: elId, setNumber: setNum, isMakeup,
-          reps: quantityTarget?.timed || reps === "" ? undefined : Number(reps),
-          durationSeconds: quantityTarget?.timed ? Number(reps) : undefined,
-          weight: weight === "" ? undefined : Number(weight),
-          missed, missReason: missReason[k] ?? saved?.missReason ?? undefined,
-        })
+        const result = await upsertSetLog(data)
+        if ("error" in result) {
+          setSaveError(result.error)
+          return
+        }
         setSetsMap((prev) => ({
           ...prev, [elId]: [
             ...(prev[elId] ?? []).filter((s) => !(s.setNumber === setNum && s.isMakeup === isMakeup)), result,

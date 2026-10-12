@@ -48,20 +48,19 @@ export function ExerciseLogCard({ el, exercise, sets }: { el: ExerciseLog; exerc
             {displayedSets.map(({ set: s, isMakeup, makeupNumber }) => (
               <div
                 key={s.id}
-                className={`grid grid-cols-12 items-center gap-2 px-1 py-1 rounded text-sm ${isMakeup ? "bg-primary/5" : s.missed ? "bg-destructive/10" : ""}`}
+                className={`grid grid-cols-12 items-center gap-2 px-1 py-1 rounded text-sm ${s.missed ? "bg-destructive/10" : isMakeup ? "bg-primary/5" : ""}`}
               >
                 <span className={isMakeup ? "col-span-1 text-primary text-xs font-bold" : "col-span-1 text-muted-foreground"}>{isMakeup ? `+${makeupNumber}` : s.setNumber}</span>
                 <span className="col-span-4">{s.weight ? `${s.weight} kg` : "—"}</span>
                 <span className="col-span-3">{s.durationSeconds != null ? `${s.durationSeconds} sec` : s.reps ?? "—"}</span>
-                <span className="col-span-4">
-                  {isMakeup ? (
-                    <Badge className="text-xs py-0">Makeup</Badge>
-                  ) : s.missed ? (
-                    <div className="flex items-center gap-1">
+                <span className="col-span-4 flex flex-wrap items-center gap-1">
+                  {isMakeup && <Badge className="text-xs py-0">Makeup</Badge>}
+                  {s.missed ? (
+                    <span className="flex items-center gap-1">
                       <XCircle className="w-3.5 h-3.5 text-destructive" />
                       <span className="text-xs text-destructive">Miss</span>
-                    </div>
-                  ) : (
+                    </span>
+                  ) : !isMakeup && (
                     <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
                   )}
                 </span>

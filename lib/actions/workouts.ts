@@ -1,5 +1,6 @@
 "use server"
 import { calculateOneRepMax } from "@/lib/strength"
+import { validateSetLog } from "@/lib/set-log-validation"
 import type { WorkoutPlan } from "@/lib/workout-plan"
 
 import { db } from "@/lib/db"
@@ -336,20 +337,17 @@ export async function upsertSetLog(data: {
   missReason?: string
 }) {
   const userId = await getUserId()
-  if (data.weight != null && (!Number.isFinite(data.weight) || data.weight < 0)) throw new Error("Enter one valid weight in kg.")
-  if (data.reps != null && (!Number.isInteger(data.reps) || data.reps < 0)) throw new Error("Enter whole-number reps, zero or greater.")
-
-  if (data.durationSeconds != null && (!Number.isInteger(data.durationSeconds) || data.durationSeconds < 0)) throw new Error("Enter whole-number seconds, zero or greater.")
-  if (data.durationSeconds != null && data.reps != null) throw new Error("Log either seconds or reps for a set.")
+  const validationError = validateSetLog(data)
+  if (validationError) return { error: validationError }
 
   const [owned] = await db.select({ el: exerciseLog }).from(exerciseLog)
     .innerJoin(workoutLog, eq(exerciseLog.workoutLogId, workoutLog.id))
     .where(and(eq(exerciseLog.id, data.exerciseLogId), eq(workoutLog.userId, userId)))
   if (!owned) throw new Error("Exercise not found")
   if (owned.el.exerciseId == null) {
-    if (!data.exerciseName?.trim()) throw new Error("Enter the exercise you chose.")
-    if ((data.reps == null && data.durationSeconds == null) || data.weight == null) throw new Error("Enter reps or seconds, and weight for your free-pick exercise (use 0 kg for bodyweight).")
-    await db.update(exerciseLog).set({ exerciseName: data.exerciseName.trim() }).where(eq(exerciseLog.id, data.exerciseLogId))
+    const freePickError = validateSetLog(data, true)
+    if (freePickError) return { error: freePickError }
+    await db.update(exerciseLog).set({ exerciseName: data.exerciseName!.trim() }).where(eq(exerciseLog.id, data.exerciseLogId))
   }
 
   const payload: Record<string, unknown> = {
