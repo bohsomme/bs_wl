@@ -15,7 +15,7 @@ import {
   program,
   personalBest,
 } from "@/lib/db/schema"
-import { asc, desc, eq, and, gte, gt, sql, inArray } from "drizzle-orm"
+import { asc, desc, eq, and, gte, gt, lt, isNull, sql, inArray } from "drizzle-orm"
 import { getUserId } from "./auth"
 import { revalidatePath } from "next/cache"
 
@@ -290,7 +290,48 @@ export async function getWorkoutWithDetails(id: number) {
         .orderBy(asc(templateFunctionalBlock.orderIndex))
     : []
 
-  return { log, exerciseLogs, prescriptionMap, setsMap, functionalBlocks }
+  const previousAccessoryMap: Record<number, {
+    exerciseName: string | null
+    date: string
+    sets: typeof allSets
+  }> = {}
+  if (log.status === "in_progress") {
+    for (const { el } of exerciseLogs) {
+      if (prescriptionMap[el.id]?.section !== "accessory") continue
+      // Free-pick slots can use different exercises; always show the saved name.
+      const match = el.exerciseId != null
+        ? eq(exerciseLog.exerciseId, el.exerciseId)
+        : el.freePickCriteria
+          ? and(isNull(exerciseLog.exerciseId), eq(exerciseLog.freePickCriteria, el.freePickCriteria))
+          : undefined
+      if (!match) continue
+      const [previous] = await db
+        .select({ id: exerciseLog.id, exerciseName: exerciseLog.exerciseName, startedAt: workoutLog.startedAt })
+        .from(exerciseLog)
+        .innerJoin(workoutLog, eq(exerciseLog.workoutLogId, workoutLog.id))
+        .where(and(
+          eq(workoutLog.userId, userId),
+          eq(workoutLog.status, "completed"),
+          lt(workoutLog.startedAt, log.startedAt),
+          eq(exerciseLog.skipped, false),
+          match,
+          inArray(exerciseLog.id, db.select({ id: setLog.exerciseLogId }).from(setLog)),
+        ))
+        .orderBy(desc(workoutLog.startedAt), desc(workoutLog.id), desc(exerciseLog.id))
+        .limit(1)
+      if (!previous) continue
+      const sets = await db.select().from(setLog)
+        .where(eq(setLog.exerciseLogId, previous.id))
+        .orderBy(asc(setLog.isMakeup), asc(setLog.setNumber))
+      previousAccessoryMap[el.id] = {
+        exerciseName: previous.exerciseName,
+        date: previous.startedAt.toISOString().slice(0, 10),
+        sets,
+      }
+    }
+  }
+
+  return { log, exerciseLogs, prescriptionMap, setsMap, functionalBlocks, previousAccessoryMap }
 }
 
 // ── Exercise logs ────────────────────────────────────────────────────────────

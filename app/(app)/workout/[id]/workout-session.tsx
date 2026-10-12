@@ -15,6 +15,7 @@ import { AddSessionExerciseDialog } from "./add-session-exercise-dialog"
 import { FunctionalNotesField } from "./functional-notes-field"
 import { FunctionalWorkoutCard } from "./functional-workout-card"
 import { MissedSetDialog } from "./missed-set-dialog"
+import { PreviousAccessory } from "./previous-accessory"
 import { useWorkoutSession } from "./use-workout-session"
 import { WorkoutCheckIn } from "./workout-check-in"
 import { WorkoutExerciseCard } from "./workout-exercise-card"
@@ -312,6 +313,7 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
         return <WorkoutExerciseCard
           key={elId}
           te={te}
+          previousAccessory={initialDetails.previousAccessoryMap?.[elId]}
           currentRow={currentRow}
           chosenNames={chosenNames}
           elId={elId}
@@ -383,6 +385,7 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
             return <button key={row.el.id} type="button" onClick={() => selectExerciseGroup(groupIndex)} className={cn("block w-full rounded-md p-2 text-left hover:bg-accent", groupIndex === currentGroupIdx && "bg-accent")}>
               <p className="text-sm font-medium">{row.exercise?.name ?? chosenNames[row.el.id] ?? row.el.exerciseName ?? "Free-pick exercise"}</p>
               <p className="text-xs text-muted-foreground">{range(prescription.setsMin, prescription.setsMax)} sets &times; {describeExerciseTarget(prescription)}{prescription.rpeTarget ? " | RPE " + prescription.rpeTarget : ""} | {getSets(row.el.id).filter((set) => !set.isMakeup).length} sets saved</p>
+              <PreviousAccessory previous={initialDetails.previousAccessoryMap?.[row.el.id]} freePick={row.el.exerciseId == null} />
             </button>
           })}
         </div>)}

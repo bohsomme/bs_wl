@@ -11,6 +11,11 @@ export type WorkoutDetails = {
   prescriptionMap: Record<number, TemplateExercise>
   setsMap: Record<number, SetLog[]>
   functionalBlocks?: TemplateFunctionalBlock[]
+  previousAccessoryMap?: Record<number, {
+    exerciseName: string | null
+    date: string
+    sets: SetLog[]
+  }>
 }
 
 export interface WorkoutSessionProps {

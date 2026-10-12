@@ -15,12 +15,14 @@ import {
   SkipForward
 } from "lucide-react"
 import type { Dispatch, SetStateAction } from "react"
-import type { ExerciseLogRow } from "./workout-types"
+import type { ExerciseLogRow, WorkoutDetails } from "./workout-types"
+import { PreviousAccessory } from "./previous-accessory"
 
 const RPE_OPTIONS = ["6", "6.5", "7", "7.5", "8", "8.5", "9", "9.5", "10"]
 
 interface WorkoutExerciseCardProps {
   te: TemplateExercise | undefined
+  previousAccessory?: NonNullable<WorkoutDetails["previousAccessoryMap"]>[number]
   currentRow: ExerciseLogRow
   chosenNames: Record<number, string>
   elId: number
@@ -55,6 +57,7 @@ interface WorkoutExerciseCardProps {
 
 export function WorkoutExerciseCard({
   te,
+  previousAccessory,
   currentRow,
   chosenNames,
   elId,
@@ -117,6 +120,7 @@ export function WorkoutExerciseCard({
       </CardHeader>
 
       <CardContent className="space-y-4">
+        {te?.section === "accessory" && <PreviousAccessory previous={previousAccessory} freePick={currentRow.el.exerciseId == null} />}
         {te && <p className="text-sm text-muted-foreground">
           {range(te.setsMin, te.setsMax)} sets &times; {describeExerciseTarget(te)}
           {te.weightType === "fixed" && te.weightValue != null ? " - " + Number(te.weightValue) + " kg" : " - " + weightHint}
