@@ -18,6 +18,8 @@ import type { Dispatch, SetStateAction } from "react"
 const FUNCTIONAL_ITEMS = FUNCTIONAL_PRESETS.map((p) => ({ value: p.kind, label: p.label }))
 
 interface FunctionalBlockDialogProps {
+  editing: boolean
+  error: string
   ffOpen: boolean
   setFfOpen: Dispatch<SetStateAction<boolean>>
   resetFfForm: () => void
@@ -36,6 +38,7 @@ interface FunctionalBlockDialogProps {
 }
 
 export function FunctionalBlockDialog({
+  editing, error,
   ffOpen,
   setFfOpen,
   resetFfForm,
@@ -53,10 +56,10 @@ export function FunctionalBlockDialog({
   pending,
 }: FunctionalBlockDialogProps) {
   return (
-    <Dialog open={ffOpen} onOpenChange={(open) => { setFfOpen(open); if (!open) resetFfForm() }}>
+    <Dialog open={ffOpen} onOpenChange={(open) => { if (pending) return; setFfOpen(open); if (!open) resetFfForm() }}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Functional Fitness</DialogTitle>
+          <DialogTitle>{editing ? "Edit" : "Add"} Functional Fitness</DialogTitle>
           <DialogDescription>
             Pick a type of workout, or choose Custom to type a specific one.
           </DialogDescription>
@@ -117,12 +120,13 @@ export function FunctionalBlockDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setFfOpen(false)}>Cancel</Button>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          <Button variant="outline" disabled={pending} onClick={() => { setFfOpen(false); resetFfForm() }}>Cancel</Button>
           <Button
             onClick={handleAddFunctionalBlock}
             disabled={pending || (ffKind === "custom" && !ffTitle.trim())}
           >
-            Add
+            {pending ? "Saving..." : editing ? "Save changes" : "Add"}
           </Button>
         </DialogFooter>
       </DialogContent>

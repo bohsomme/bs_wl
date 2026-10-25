@@ -146,7 +146,12 @@ export function WorkoutExerciseCard({
             for (let n = 1; n <= totalSets; n++) {
               rows.push({ isMakeup: false, n })
               const workingSet = savedSets.find((set) => !set.isMakeup && set.setNumber === n)
-              if (workingSet?.missed && nextMakeup <= extraMakeupCount) rows.push({ isMakeup: true, n: nextMakeup++ })
+              let missed = workingSet?.missed
+              while (missed && nextMakeup <= extraMakeupCount) {
+                const makeupNumber = nextMakeup++
+                rows.push({ isMakeup: true, n: makeupNumber })
+                missed = savedSets.find((set) => set.isMakeup && set.setNumber === makeupNumber)?.missed
+              }
             }
             while (nextMakeup <= extraMakeupCount) rows.push({ isMakeup: true, n: nextMakeup++ })
             return rows.map(({ isMakeup, n }) => {

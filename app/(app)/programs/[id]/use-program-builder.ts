@@ -13,10 +13,13 @@ import {
   getFunctionalBlocks,
   getTemplateExercises,
   updateTemplateExercise,
+  updateFunctionalBlock,
+  reorderTemplateExercises,
 } from "@/lib/actions/programs"
 import type { TemplateExercise, TemplateFunctionalBlock, WorkoutTemplate } from "@/lib/db/schema"
 import { type FunctionalKind } from "@/lib/functional-fitness"
 import { formatTarget, parsePercentages, parseRepsBySet } from "@/lib/prescription"
+import { moveTemplateExercise } from "@/lib/template-exercise-order"
 import { useState, useTransition } from "react"
 import type { ProgramBuilderProps, TemplateExerciseRow } from "./program-types"
 
@@ -38,6 +41,8 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
 
   // Functional Fitness dialog
   const [ffOpen, setFfOpen] = useState(false)
+  const [editingFunctionalBlock, setEditingFunctionalBlock] = useState<TemplateFunctionalBlock | null>(null)
+  const [ffError, setFfError] = useState("")
   const [ffKind, setFfKind] = useState<FunctionalKind>("metcon")
   const [ffTitle, setFfTitle] = useState("")
   const [ffSource, setFfSource] = useState("")
@@ -54,6 +59,8 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
   const [addExOpen, setAddExOpen] = useState(false)
   const [editingExercise, setEditingExercise] = useState<TemplateExercise | null>(null)
   const [selectedExId, setSelectedExId] = useState<number | null>(null)
+  const [freePick, setFreePick] = useState(false)
+  const [freePickCriteria, setFreePickCriteria] = useState("")
   const [setsMin, setSetsMin] = useState("3")
   const [setsMax, setSetsMax] = useState("")
   const [targetType, setTargetType] = useState("reps")
@@ -110,18 +117,25 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
     if (!selectedTemplate) return
     if (ffKind === "custom" && !ffTitle.trim()) return
     startTransition(async () => {
-      const block = await addFunctionalBlock({
-        workoutTemplateId: selectedTemplate.id,
+      try {
+      const data = {
         kind: ffKind,
-        title: ffTitle.trim() || undefined,
-        source: ffSource.trim() || undefined,
-        details: ffDetails.trim() || undefined,
-        durationMin: ffDuration ? Number(ffDuration) : undefined,
-        orderIndex: functionalBlocks.length,
-      })
-      setFunctionalBlocks((prev) => [...prev, block])
+        title: ffTitle.trim() || null,
+        source: ffSource.trim() || null,
+        details: ffDetails.trim() || null,
+        durationMin: ffDuration ? Number(ffDuration) : null,
+      }
+      if (data.durationMin != null && (!Number.isInteger(data.durationMin) || data.durationMin < 1)) throw new Error("Enter a positive whole number of minutes.")
+      const block = editingFunctionalBlock
+        ? await updateFunctionalBlock(editingFunctionalBlock.id, data)
+        : await addFunctionalBlock({ ...data, workoutTemplateId: selectedTemplate.id,
+          title: data.title ?? undefined, source: data.source ?? undefined, details: data.details ?? undefined,
+          durationMin: data.durationMin ?? undefined,
+          orderIndex: Math.max(-1, ...functionalBlocks.map((b) => b.orderIndex)) + 1 })
+      setFunctionalBlocks((prev) => editingFunctionalBlock ? prev.map((b) => b.id === block.id ? block : b) : [...prev, block])
       resetFfForm()
       setFfOpen(false)
+      } catch (error) { setFfError(error instanceof Error ? error.message : "Could not save functional work.") }
     })
   }
 
@@ -133,11 +147,39 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
   }
 
   function resetFfForm() {
+    setEditingFunctionalBlock(null)
+    setFfError("")
     setFfKind("metcon")
     setFfTitle("")
     setFfSource("")
     setFfDetails("")
     setFfDuration("")
+  }
+
+  function handleEditFunctionalBlock(block: TemplateFunctionalBlock) {
+    resetFfForm()
+    setEditingFunctionalBlock(block)
+    setFfKind(block.kind as FunctionalKind)
+    setFfTitle(block.title ?? "")
+    setFfSource(block.source ?? "")
+    setFfDetails(block.details ?? "")
+    setFfDuration(block.durationMin == null ? "" : String(block.durationMin))
+    setFfOpen(true)
+  }
+
+  function handleMoveExercise(id: number, direction: -1 | 1) {
+    if (!selectedTemplate) return
+    const row = templateExercises.find((row) => row.te.id === id)
+    if (!row) return
+    const ids = moveTemplateExercise(templateExercises, id, direction)
+    if (!ids) return
+    startTransition(async () => {
+      try {
+        await reorderTemplateExercises(selectedTemplate.id, row.te.section, ids)
+        setTemplateExercises(await getTemplateExercises(selectedTemplate.id))
+        setScheduleError("")
+      } catch (error) { setScheduleError(error instanceof Error ? error.message : "Could not reorder exercises.") }
+    })
   }
 
   function handleAddTemplate() {
@@ -179,12 +221,12 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
       && (repsMax === "" || (validCount(repsMax) && Number(repsMax) >= Number(repsMin))))
 
   function handleAddExercise() {
-    if ((!selectedExId && !editingExercise?.freePickCriteria) || !selectedTemplate || !validPrescription) return
+    if ((freePick ? !freePickCriteria.trim() : !selectedExId) || !selectedTemplate || !validPrescription) return
     startTransition(async () => {
       try {
         const data = {
-          exerciseId: selectedExId,
-          freePickCriteria: selectedExId ? null : editingExercise?.freePickCriteria,
+          exerciseId: freePick ? null : selectedExId,
+          freePickCriteria: freePick ? freePickCriteria.trim() : null,
           section,
           superset: section === "accessory" ? superset.trim() || undefined : undefined,
           totalRepsMin: targetType !== "time" && totalRepsMin ? Number(totalRepsMin) : undefined,
@@ -253,6 +295,8 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
   }
 
   function resetExForm() {
+    setFreePick(false)
+    setFreePickCriteria("")
     setEditingExercise(null)
     setSection("main")
     setSuperset("")
@@ -276,6 +320,8 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
   function handleEditExercise(te: TemplateExercise) {
     resetExForm()
     setEditingExercise(te)
+    setFreePick(te.exerciseId == null)
+    setFreePickCriteria(te.freePickCriteria ?? "")
     setSelectedExId(te.exerciseId)
     setSection(te.section)
     setSuperset(te.superset ?? "")
@@ -319,6 +365,19 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
     })
   }
 
+  function handleRenameTemplate(name: string) {
+    if (!selectedTemplate || name.trim() === selectedTemplate.name) return
+    if (!name.trim()) { setScheduleError("Enter a workout name."); return }
+    startTransition(async () => {
+      try {
+        const t = await updateWorkoutTemplate(selectedTemplate.id, { name: name.trim() })
+        setTemplates((prev) => prev.map((row) => row.id === t.id ? t : row))
+        setSelectedTemplate(t)
+        setScheduleError("")
+      } catch (error) { setScheduleError(error instanceof Error ? error.message : "Could not rename workout.") }
+    })
+  }
+
   function handleChangeWeeks(removeWeek?: number) {
     if (removeWeek !== undefined && templates.some((t) => t.weekNumber === removeWeek) && !window.confirm("Remove week " + removeWeek + " and its planned workouts/rest days? Later weeks move up. Workout logs are kept.")) return
     startTransition(async () => {
@@ -335,6 +394,9 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
   }
 
   return {
+    handleRenameTemplate, setSection,
+    freePick, setFreePick, freePickCriteria, setFreePickCriteria,
+    editingFunctionalBlock, ffError, handleEditFunctionalBlock, handleMoveExercise,
     totalWeeks, scheduleError, newRestDay, setNewRestDay, handleMoveTemplate, handleChangeWeeks,
     templates,
     exercises,
@@ -372,7 +434,6 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
     addExOpen,
     setAddExOpen,
     editingExercise,
-    setEditingExercise,
     selectedExId,
     setSelectedExId,
     setsMin,

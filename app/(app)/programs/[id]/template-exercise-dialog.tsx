@@ -29,7 +29,11 @@ interface TemplateExerciseDialogProps {
   resetExForm: () => void
   editingExercise: TemplateExercise | null
   section: string
-  setEditingExercise: Dispatch<SetStateAction<TemplateExercise | null>>
+  setSection: Dispatch<SetStateAction<string>>
+  freePick: boolean
+  setFreePick: Dispatch<SetStateAction<boolean>>
+  freePickCriteria: string
+  setFreePickCriteria: Dispatch<SetStateAction<string>>
   exercises: Exercise[]
   selectedExId: number | null
   setSelectedExId: Dispatch<SetStateAction<number | null>>
@@ -74,7 +78,8 @@ export function TemplateExerciseDialog({
   resetExForm,
   editingExercise,
   section,
-  setEditingExercise,
+  setSection,
+  freePick, setFreePick, freePickCriteria, setFreePickCriteria,
   exercises,
   selectedExId,
   setSelectedExId,
@@ -119,9 +124,15 @@ export function TemplateExerciseDialog({
           <DialogDescription>Prescribe sets, reps or time, and loading for this exercise.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
+          <div className="space-y-1.5"><Label htmlFor="exercise-section">Block</Label>
+            <select id="exercise-section" className="w-full rounded-md border bg-background p-2" value={section} onChange={(e) => { setSection(e.target.value); if (e.target.value === "main") setFreePick(false) }}>
+              <option value="main">Main exercises</option><option value="accessory">Accessories</option>
+            </select>
+          </div>
           <div className="space-y-1.5">
-            {editingExercise?.freePickCriteria && <div className="space-y-2"><Label htmlFor="edit-criteria">Free-pick criteria</Label><Textarea id="edit-criteria" value={editingExercise.freePickCriteria} onChange={(e) => setEditingExercise({ ...editingExercise, freePickCriteria: e.target.value })} /></div>}
-            {!editingExercise?.freePickCriteria && <>
+            {section === "accessory" && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={freePick} onChange={(e) => setFreePick(e.target.checked)} />Free-pick exercise</label>}
+            {freePick && <div className="space-y-2"><Label htmlFor="edit-criteria">Free-pick criteria</Label><Textarea id="edit-criteria" value={freePickCriteria} onChange={(e) => setFreePickCriteria(e.target.value)} /><p className="text-xs text-muted-foreground">Free-pick exercises need a superset name and fixed or RPE loading.</p></div>}
+            {!freePick && <>
               <Label>Exercise</Label>
               <div className="flex gap-2">
                 <Select
@@ -179,11 +190,11 @@ export function TemplateExerciseDialog({
             <Label htmlFor="superset">Superset name (optional)</Label>
             <Input id="superset" placeholder="Use the same name for 2+ exercises" value={superset} onChange={(e) => setSuperset(e.target.value)} />
           </div>}
-          {section === "main" && targetType !== "time" && <div className="grid grid-cols-2 gap-3">
+          {targetType !== "time" && <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5"><Label htmlFor="total-reps-min">Total reps (min, optional)</Label><Input id="total-reps-min" type="number" min={1} value={totalRepsMin} onChange={(e) => setTotalRepsMin(e.target.value)} /></div>
             <div className="space-y-1.5"><Label htmlFor="total-reps-max">Total reps (max, optional)</Label><Input id="total-reps-max" type="number" min={1} placeholder="Same as min" value={totalRepsMax} onChange={(e) => setTotalRepsMax(e.target.value)} /></div>
           </div>}
-          {section === "main" && <div className="space-y-1.5">
+          <div className="space-y-1.5">
             <Label>Loading type</Label>
             <Select items={LOADING_ITEMS} value={weightType} onValueChange={(value) => { if (value !== null) setWeightType(value) }}>
               <SelectTrigger>
@@ -195,7 +206,7 @@ export function TemplateExerciseDialog({
                 ))}
               </SelectContent>
             </Select>
-          </div>}
+          </div>
 
           {weightType === "fixed" && (
             <div className="space-y-1.5">
@@ -219,13 +230,13 @@ export function TemplateExerciseDialog({
 
           <div className="space-y-1.5">
             <Label>Notes (optional)</Label>
-            <Input placeholder="Coaching cues, focus points..." value={exNotes} onChange={(e) => setExNotes(e.target.value)} />
+            <Textarea placeholder="Coaching cues, focus points..." value={exNotes} onChange={(e) => setExNotes(e.target.value)} />
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" disabled={pending} onClick={() => { setAddExOpen(false); resetExForm() }}>Cancel</Button>
           {exerciseError && <p role="alert" className="text-sm text-destructive">{exerciseError}</p>}
-          <Button onClick={handleAddExercise} disabled={pending || (!selectedExId && !editingExercise?.freePickCriteria) || !validPrescription}>{pending ? "Saving..." : editingExercise ? "Save changes" : "Add"}</Button>
+          <Button onClick={handleAddExercise} disabled={pending || (freePick ? !freePickCriteria.trim() : !selectedExId) || !validPrescription}>{pending ? "Saving..." : editingExercise ? "Save changes" : "Add"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

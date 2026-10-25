@@ -427,8 +427,8 @@ export async function upsertSetLog(data: {
     ;[savedSet] = await db.insert(setLog).values(payload as typeof setLog.$inferInsert).returning()
   }
 
-  // Auto-update PB if applicable
-  if (data.reps && data.weight && !data.missed) {
+  // Only a completed single can automatically beat the current measured or predicted max.
+  if (data.reps === 1 && data.weight && !data.missed && data.durationSeconds == null) {
     const [el] = await db
       .select({ exerciseId: exerciseLog.exerciseId, workoutLogId: exerciseLog.workoutLogId })
       .from(exerciseLog)

@@ -7,18 +7,22 @@ import { CheckCircle2, NotebookPen, XCircle } from "lucide-react"
 export function ExerciseLogCard({ el, exercise, sets }: { el: ExerciseLog; exercise: Exercise | null; sets: SetLog[] }) {
   const hasTimedSets = sets.some((s) => s.durationSeconds != null)
   const hasRepSets = sets.some((s) => s.reps != null)
-  const workingSets = sets.filter((s) => !s.isMakeup)
-  const makeupSets = sets.filter((s) => s.isMakeup)
+  const workingSets = sets.filter((s) => !s.isMakeup).sort((a, b) => a.setNumber - b.setNumber)
+  const makeupSets = sets.filter((s) => s.isMakeup).sort((a, b) => a.setNumber - b.setNumber)
   let nextMakeup = 0
   const displayedSets = workingSets.flatMap((set) => {
     const rows = [{ set, isMakeup: false, makeupNumber: 0 }]
-    if (set.missed && nextMakeup < makeupSets.length) {
-      rows.push({ set: makeupSets[nextMakeup], isMakeup: true, makeupNumber: ++nextMakeup })
+    let missed = set.missed
+    while (missed && nextMakeup < makeupSets.length) {
+      const makeup = makeupSets[nextMakeup++]
+      rows.push({ set: makeup, isMakeup: true, makeupNumber: makeup.setNumber })
+      missed = makeup.missed
     }
     return rows
   })
   while (nextMakeup < makeupSets.length) {
-    displayedSets.push({ set: makeupSets[nextMakeup], isMakeup: true, makeupNumber: ++nextMakeup })
+    const makeup = makeupSets[nextMakeup++]
+    displayedSets.push({ set: makeup, isMakeup: true, makeupNumber: makeup.setNumber })
   }
   return (<Card key={el.id} className={el.skipped ? "opacity-60" : ""}>
     <CardHeader className="pb-2">

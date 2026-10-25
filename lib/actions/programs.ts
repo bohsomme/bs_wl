@@ -347,6 +347,54 @@ export async function deleteFunctionalBlock(id: number) {
   await db.delete(templateFunctionalBlock).where(eq(templateFunctionalBlock.id, id))
 }
 
+export async function updateFunctionalBlock(id: number, data: {
+  kind: string
+  title: string | null
+  source: string | null
+  details: string | null
+  durationMin: number | null
+}) {
+  const userId = await getUserId()
+  if (!["metcon", "zone2", "mobility", "custom"].includes(data.kind)) throw new Error("Choose a valid workout type.")
+  if (data.kind === "custom" && !data.title?.trim()) throw new Error("Enter a workout title.")
+  if (data.durationMin != null && (!Number.isInteger(data.durationMin) || data.durationMin < 1)) throw new Error("Enter a positive whole number of minutes.")
+  const [owned] = await db.select({ programId: program.id }).from(templateFunctionalBlock)
+    .innerJoin(workoutTemplate, eq(templateFunctionalBlock.workoutTemplateId, workoutTemplate.id))
+    .innerJoin(program, eq(workoutTemplate.programId, program.id))
+    .where(and(eq(templateFunctionalBlock.id, id), eq(program.userId, userId)))
+  if (!owned) throw new Error("Functional block not found")
+  const [block] = await db.update(templateFunctionalBlock).set({
+    kind: data.kind, title: data.title?.trim() || null, source: data.source?.trim() || null,
+    details: data.details?.trim() || null, durationMin: data.durationMin,
+  }).where(eq(templateFunctionalBlock.id, id)).returning()
+  revalidatePath(`/programs/${owned.programId}`)
+  return block
+}
+
+export async function reorderTemplateExercises(templateId: number, section: string, orderedIds: number[]) {
+  const userId = await getUserId()
+  if (!["main", "accessory"].includes(section)) throw new Error("Invalid exercise section.")
+  const programId = await db.transaction(async (tx) => {
+    const [owned] = await tx.select({ programId: program.id }).from(workoutTemplate)
+      .innerJoin(program, eq(workoutTemplate.programId, program.id))
+      .where(and(eq(workoutTemplate.id, templateId), eq(program.userId, userId))).for("update")
+    if (!owned) throw new Error("Workout not found")
+    const rows = await tx.select().from(templateExercise)
+      .where(eq(templateExercise.workoutTemplateId, templateId)).orderBy(asc(templateExercise.orderIndex), asc(templateExercise.id))
+    const members = rows.filter((row) => row.section === section)
+    if (orderedIds.length !== members.length || new Set(orderedIds).size !== members.length || orderedIds.some((id) => !members.some((row) => row.id === id))) {
+      throw new Error("The exercise list changed. Reopen the workout and try again.")
+    }
+    const otherIds = rows.filter((row) => row.section !== section).map((row) => row.id)
+    const allIds = section === "main" ? [...orderedIds, ...otherIds] : [...otherIds, ...orderedIds]
+    for (const [orderIndex, id] of allIds.entries()) {
+      await tx.update(templateExercise).set({ orderIndex }).where(eq(templateExercise.id, id))
+    }
+    return owned.programId
+  })
+  revalidatePath(`/programs/${programId}`)
+}
+
 // ── Template Exercises ──────────────────────────────────────────────────────
 
 export async function getTemplateExercises(workoutTemplateId: number) {

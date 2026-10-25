@@ -2,6 +2,7 @@
 import { NewExerciseDialog } from "@/components/new-exercise-dialog"
 import { ProgramExportDialog } from "@/components/program-export-dialog"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { ChevronLeft } from "lucide-react"
 import Link from "next/link"
 import { DuplicateDayDialog } from "./duplicate-day-dialog"
@@ -15,6 +16,9 @@ import { useProgramBuilder } from "./use-program-builder"
 
 export function ProgramBuilder({ program, initialTemplates, exercises: initialExercises }: ProgramBuilderProps) {
   const {
+    handleRenameTemplate, setSection,
+    freePick, setFreePick, freePickCriteria, setFreePickCriteria,
+    editingFunctionalBlock, ffError, handleEditFunctionalBlock, handleMoveExercise,
     totalWeeks, scheduleError, newRestDay, setNewRestDay, handleMoveTemplate, handleChangeWeeks,
     templates,
     exercises,
@@ -52,7 +56,6 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
     addExOpen,
     setAddExOpen,
     editingExercise,
-    setEditingExercise,
     selectedExId,
     setSelectedExId,
     setsMin,
@@ -128,6 +131,9 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
       </div>
       {scheduleError && <p role="alert" className="text-sm text-destructive">{scheduleError}</p>}
       {selectedTemplate && <div className="flex flex-wrap items-center gap-3">
+        <label className="flex items-center gap-2 text-sm">Workout name
+          <Input key={selectedTemplate.id + ":" + selectedTemplate.name} defaultValue={selectedTemplate.name} disabled={pending} onBlur={(e) => handleRenameTemplate(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur() }} />
+        </label>
         <span className="text-sm">Move {selectedTemplate.name}:</span>
         <select aria-label="Workout week" className="rounded-md border bg-background p-2" disabled={pending} value={selectedTemplate.weekNumber} onChange={(e) => handleMoveTemplate(Number(e.target.value), selectedTemplate.dayNumber)}>{weeks.map((w) => <option key={w} value={w}>Week {w}</option>)}</select>
         <select aria-label="Workout day" className="rounded-md border bg-background p-2" disabled={pending} value={selectedTemplate.dayNumber} onChange={(e) => handleMoveTemplate(selectedTemplate.weekNumber, Number(e.target.value))}>{Array.from({ length: 7 }, (_, i) => <option key={i} value={i + 1}>Day {i + 1}</option>)}</select>
@@ -147,6 +153,9 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
 
         {/* Right: exercise builder */}
         <TemplateEditor
+          handleMoveExercise={handleMoveExercise}
+          handleEditFunctionalBlock={handleEditFunctionalBlock}
+          resetFfForm={resetFfForm}
           key={selectedTemplate?.id ?? "empty"}
           selectedTemplate={selectedTemplate}
           setDupWeek={setDupWeek}
@@ -187,13 +196,17 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
 
       {/* Add Exercise to Template Dialog */}
       <TemplateExerciseDialog
+        freePick={freePick}
+        setFreePick={setFreePick}
+        freePickCriteria={freePickCriteria}
+        setFreePickCriteria={setFreePickCriteria}
         addExOpen={addExOpen}
         pending={pending}
         setAddExOpen={setAddExOpen}
         resetExForm={resetExForm}
         editingExercise={editingExercise}
         section={section}
-        setEditingExercise={setEditingExercise}
+        setSection={setSection}
         exercises={exercises}
         selectedExId={selectedExId}
         setSelectedExId={setSelectedExId}
@@ -259,6 +272,8 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
 
       {/* Functional Fitness Dialog */}
       <FunctionalBlockDialog
+        editing={editingFunctionalBlock != null}
+        error={ffError}
         ffOpen={ffOpen}
         setFfOpen={setFfOpen}
         resetFfForm={resetFfForm}
