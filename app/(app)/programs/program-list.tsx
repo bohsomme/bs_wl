@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { createProgram, deleteProgram, duplicateProgram, setActiveProgram } from "@/lib/actions/programs"
 import type { Program } from "@/lib/db/schema"
+import { localDate, programEnd, programStatus } from "@/lib/program-schedule"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -73,16 +74,24 @@ export function ProgramList({ initialPrograms }: ProgramListProps) {
   const [assignId, setAssignId] = useState<number | null>(null)
   const [startDate, setStartDate] = useState("")
   const [assignError, setAssignError] = useState("")
+  const [conflict, setConflict] = useState<Extract<Awaited<ReturnType<typeof setActiveProgram>>, { status: "conflict" }> | null>(null)
+  const today = localDate()
 
-  function handleSetActive(id: number) {
+  function handleSetActive(id: number, confirmation?: string) {
     startTransition(async () => {
       try {
-      await setActiveProgram(id, startDate)
-      setPrograms((prev) =>
-        prev.map((p) => ({ ...p, isActive: p.id === id, startDate: p.id === id ? startDate : p.startDate }))
-      )
-      setAssignId(null)
-      router.refresh()
+        setAssignError("")
+        const result = await setActiveProgram(id, startDate, confirmation)
+        if (result.status === "conflict") {
+          setConflict(result)
+          return
+        }
+        setPrograms((prev) => prev.map((p) => p.id === id
+          ? { ...p, isActive: true, startDate }
+          : result.replacedIds.includes(p.id) ? { ...p, isActive: false } : p))
+        setAssignId(null)
+        setConflict(null)
+        router.refresh()
       } catch (error) {
         setAssignError(error instanceof Error ? error.message : "Could not assign program")
       }
@@ -91,19 +100,24 @@ export function ProgramList({ initialPrograms }: ProgramListProps) {
 
   return (
     <div className="space-y-4">
-      <Dialog open={assignId !== null} onOpenChange={(open) => { if (!open) setAssignId(null) }}>
+      <Dialog open={assignId !== null} onOpenChange={(open) => { if (!pending && !open) setAssignId(null) }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Assign Program</DialogTitle>
-            <DialogDescription>Day 1 starts on the date you choose. All other days follow from that date.</DialogDescription>
+            <DialogDescription>Day 1 starts on the date you choose. Programs with non-overlapping dates stay on your calendar.</DialogDescription>
           </DialogHeader>
           <Label htmlFor="program-start">Start date</Label>
-          <Input id="program-start" type="date" required value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <Input id="program-start" type="date" required disabled={pending} value={startDate} onChange={(e) => { setStartDate(e.target.value); setConflict(null); setAssignError("") }} />
           {startDate && <p className="text-sm text-muted-foreground">Day 1: {new Date(startDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>}
+          {conflict && <div role="alert" className="space-y-2 rounded-lg border border-destructive/50 p-3 text-sm">
+            <p className="font-medium">Program dates overlap</p>
+            <ul className="list-disc pl-5">{conflict.conflicts.map((p) => <li key={p.id}>{p.name}: {p.startDate} to {p.endDate}</li>)}</ul>
+            <p>Replace removes these programs from the calendar and assigns the new program. Workout logs are kept. Overlap includes rest days.</p>
+          </div>}
           {assignError && <p role="alert" className="text-sm text-destructive">{assignError}</p>}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAssignId(null)}>Cancel</Button>
-            <Button disabled={pending || !startDate} onClick={() => assignId !== null && handleSetActive(assignId)}>Assign Program</Button>
+            <Button variant="outline" disabled={pending} onClick={() => setAssignId(null)}>Cancel</Button>
+            <Button disabled={pending || !startDate} onClick={() => assignId !== null && handleSetActive(assignId, conflict?.confirmation)}>{pending ? "Assigning..." : conflict ? "Replace and assign" : "Assign Program"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -182,7 +196,7 @@ export function ProgramList({ initialPrograms }: ProgramListProps) {
                   <div className="flex items-center gap-1 shrink-0">
                     {p.isActive && (
                       <Badge className="text-xs gap-1">
-                        <Zap className="w-3 h-3" /> Active
+                        <Zap className="w-3 h-3" /> {programStatus(p, today) ?? "Assigned"}
                       </Badge>
                     )}
                     <DropdownMenu>
@@ -191,7 +205,7 @@ export function ProgramList({ initialPrograms }: ProgramListProps) {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         {(
-                          <DropdownMenuItem onClick={() => { setAssignId(p.id); setStartDate(p.startDate ?? ""); setAssignError("") }}>
+                          <DropdownMenuItem onClick={() => { setAssignId(p.id); setStartDate(p.startDate ?? ""); setAssignError(""); setConflict(null) }}>
                             <Zap className="w-4 h-4 mr-2" /> {p.isActive ? "Reassign program" : "Assign program"}
                           </DropdownMenuItem>
                         )}
@@ -213,7 +227,7 @@ export function ProgramList({ initialPrograms }: ProgramListProps) {
               <CardContent>
                 <p className="text-xs text-muted-foreground mb-3">
                   {p.totalWeeks} week{p.totalWeeks !== 1 ? "s" : ""}
-                  {p.startDate && <> &middot; Starts {new Date(p.startDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</>}
+                  {p.isActive && p.startDate && <> &middot; {p.startDate} to {programEnd({ ...p, startDate: p.startDate })}</>}
                 </p>
                 <Button render={<Link href={`/programs/${p.id}`} />} variant="outline" size="sm" className="w-full gap-1.5">
                   View &amp; Edit <ChevronRight className="w-3.5 h-3.5" />

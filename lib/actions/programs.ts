@@ -2,7 +2,8 @@
 
 import { validateDurationTarget, validateRepsBySet } from "@/lib/prescription"
 import { db } from "@/lib/db"
-import { program, workoutTemplate, templateExercise, templateFunctionalBlock } from "@/lib/db/schema"
+import { user, program, workoutTemplate, templateExercise, templateFunctionalBlock } from "@/lib/db/schema"
+import { findProgramConflicts } from "@/lib/program-schedule"
 import { asc, eq, and, gt, inArray, sql } from "drizzle-orm"
 import { getUserId } from "./auth"
 import { revalidatePath } from "next/cache"
@@ -158,17 +159,35 @@ export async function duplicateProgram(id: number) {
   return newProgram
 }
 
-export async function setActiveProgram(id: number, startDate: string) {
+export async function setActiveProgram(id: number, startDate: string, confirmedConflicts?: string) {
   const userId = await getUserId()
   if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !Number.isFinite(Date.parse(startDate)) || new Date(startDate).toISOString().slice(0, 10) !== startDate) throw new Error("Choose a valid start date")
-  await db.transaction(async (tx) => {
-    const [chosen] = await tx.select().from(program).where(and(eq(program.id, id), eq(program.userId, userId)))
+  const result = await db.transaction(async (tx) => {
+    // Serialize assignments for this user, including assignments to different programs.
+    await tx.select({ id: user.id }).from(user).where(eq(user.id, userId)).for("update")
+    const programs = await tx.select().from(program).where(eq(program.userId, userId)).orderBy(asc(program.id)).for("update")
+    const chosen = programs.find((p) => p.id === id)
     if (!chosen) throw new Error("Program not found")
-    await tx.update(program).set({ isActive: false, updatedAt: new Date() }).where(eq(program.userId, userId))
+    const conflicts = findProgramConflicts({ ...chosen, startDate }, programs)
+    const confirmation = JSON.stringify({ id, startDate, totalWeeks: chosen.totalWeeks, conflicts })
+    if (conflicts.length && confirmedConflicts !== confirmation) {
+      return { status: "conflict" as const, conflicts, confirmation }
+    }
+    const replacedIds = conflicts.map((p) => p.id)
+    if (replacedIds.length) {
+      await tx.update(program).set({ isActive: false, updatedAt: new Date() })
+        .where(and(eq(program.userId, userId), inArray(program.id, replacedIds)))
+    }
     await tx.update(program).set({ isActive: true, startDate, assignedAt: new Date(), updatedAt: new Date() }).where(and(eq(program.id, id), eq(program.userId, userId)))
+    return { status: "assigned" as const, replacedIds }
   })
-  revalidatePath("/programs")
-  revalidatePath("/")
+  if (result.status === "assigned") {
+    revalidatePath("/programs")
+    revalidatePath("/dashboard")
+    revalidatePath("/log")
+    revalidatePath("/")
+  }
+  return result
 }
 
 // ── Workout Templates ───────────────────────────────────────────────────────
@@ -525,7 +544,7 @@ export async function deleteTemplateExercise(id: number) {
 }
 
 function validateFreePick(data: { exerciseId: number | null; freePickCriteria?: string | null; section?: string; superset?: string | null; weightType: string }) {
-  if (data.exerciseId == null && (!data.freePickCriteria?.trim() || data.section !== "accessory" || !data.superset?.trim() || data.weightType === "pb_percent")) throw new Error("Free-pick exercises need written criteria and an accessory superset, without PB loading.")
+  if (data.exerciseId == null && (!data.freePickCriteria?.trim() || data.section !== "accessory" || data.weightType === "pb_percent")) throw new Error("Free-pick exercises need written criteria and must be accessories, without PB loading.")
   if (data.exerciseId != null && (!Number.isInteger(data.exerciseId) || data.exerciseId < 1)) throw new Error("Choose a valid exercise.")
   if (data.exerciseId != null && data.freePickCriteria) throw new Error("Choose a library exercise or free-pick criteria.")
 }

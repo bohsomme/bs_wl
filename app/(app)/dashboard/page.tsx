@@ -36,8 +36,9 @@ export default async function HomePage() {
     getWorkoutLogs(),
     getPrograms(),
   ])
-  const assignedProgram = programs.find((program) => program.isActive)
-  const plannedWorkouts = assignedProgram?.startDate ? await getWorkoutTemplates(assignedProgram.id) : []
+  const assignedPrograms = programs.flatMap((program) => program.isActive && program.startDate ? [{ ...program, startDate: program.startDate }] : [])
+    .sort((a, b) => a.startDate.localeCompare(b.startDate) || a.id - b.id)
+  const plannedWorkouts = (await Promise.all(assignedPrograms.map((program) => getWorkoutTemplates(program.id)))).flat()
 
   return (
     <div className="space-y-6">
@@ -149,10 +150,10 @@ export default async function HomePage() {
         </Card>
       </div>
 
-      {assignedProgram?.startDate && (
+      {assignedPrograms.length > 0 && (
         <ProgramCalendar
-          key={`${assignedProgram.id}-${assignedProgram.startDate}`}
-          program={{ ...assignedProgram, startDate: assignedProgram.startDate }}
+          key={assignedPrograms.map((p) => `${p.id}-${p.startDate}-${p.totalWeeks}`).join(",")}
+          programs={assignedPrograms}
           templates={plannedWorkouts}
           today={new Date().toISOString().slice(0, 10)}
         />

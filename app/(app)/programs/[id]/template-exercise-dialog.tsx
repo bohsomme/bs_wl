@@ -131,7 +131,7 @@ export function TemplateExerciseDialog({
           </div>
           <div className="space-y-1.5">
             {section === "accessory" && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={freePick} onChange={(e) => setFreePick(e.target.checked)} />Free-pick exercise</label>}
-            {freePick && <div className="space-y-2"><Label htmlFor="edit-criteria">Free-pick criteria</Label><Textarea id="edit-criteria" value={freePickCriteria} onChange={(e) => setFreePickCriteria(e.target.value)} /><p className="text-xs text-muted-foreground">Free-pick exercises need a superset name and fixed or RPE loading.</p></div>}
+            {freePick && <div className="space-y-2"><Label htmlFor="edit-criteria">Free-pick criteria</Label><Textarea id="edit-criteria" value={freePickCriteria} onChange={(e) => setFreePickCriteria(e.target.value)} /><p className="text-xs text-muted-foreground">Choose and name the exercise during the workout. Use fixed or RPE loading; a superset is optional.</p></div>}
             {!freePick && <>
               <Label>Exercise</Label>
               <div className="flex gap-2">

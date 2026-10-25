@@ -82,7 +82,7 @@ export const program = pgTable("program", {
   userId: text("userId").notNull(),
   name: text("name").notNull(),
   description: text("description"),
-  isActive: boolean("isActive").notNull().default(false),
+  isActive: boolean("isActive").notNull().default(false), // Included in the calendar; multiple non-overlapping programs may be assigned.
   startDate: text("startDate"),
   assignedAt: timestamp("assignedAt", { withTimezone: true }),
   totalWeeks: integer("totalWeeks").notNull().default(1),

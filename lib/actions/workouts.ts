@@ -1,6 +1,7 @@
 "use server"
 import { calculateOneRepMax } from "@/lib/strength"
 import { validateSetLog } from "@/lib/set-log-validation"
+import { localDate, programEnd } from "@/lib/program-schedule"
 import type { WorkoutPlan } from "@/lib/workout-plan"
 
 import { db } from "@/lib/db"
@@ -24,51 +25,48 @@ import { revalidatePath } from "next/cache"
 export async function getNextWorkout() {
   const userId = await getUserId()
 
-  // Find active program
-  const [activeProgram] = await db
+  const assignedPrograms = await db
     .select()
     .from(program)
     .where(and(eq(program.userId, userId), eq(program.isActive, true)))
-    .limit(1)
 
-  if (!activeProgram?.startDate) return null
+  const today = localDate()
+  const candidates = await Promise.all(assignedPrograms.map(async (activeProgram) => {
+    if (!activeProgram.startDate || programEnd({ ...activeProgram, startDate: activeProgram.startDate }) < today) return null
 
-  // Get all templates for this program
-  const templates = await db
-    .select()
-    .from(workoutTemplate)
-    .where(and(eq(workoutTemplate.programId, activeProgram.id), eq(workoutTemplate.isRestDay, false)))
-    .orderBy(asc(workoutTemplate.weekNumber), asc(workoutTemplate.dayNumber))
+    const [templates, logs] = await Promise.all([
+      db.select()
+        .from(workoutTemplate)
+        .where(and(eq(workoutTemplate.programId, activeProgram.id), eq(workoutTemplate.isRestDay, false)))
+        .orderBy(asc(workoutTemplate.weekNumber), asc(workoutTemplate.dayNumber), asc(workoutTemplate.orderInDay), asc(workoutTemplate.id)),
+      db.select()
+        .from(workoutLog)
+        .where(and(
+          eq(workoutLog.userId, userId),
+          eq(workoutLog.programId, activeProgram.id),
+          eq(workoutLog.status, "completed"),
+          activeProgram.assignedAt ? gte(workoutLog.startedAt, activeProgram.assignedAt) : undefined,
+        ))
+        .orderBy(desc(workoutLog.completedAt))
+        .limit(1),
+    ])
 
-  if (templates.length === 0) return null
+    const [lastLog] = logs
+    const lastIdx = templates.findIndex((t) => t.id === lastLog?.workoutTemplateId)
+    const nextTemplate = templates[lastIdx + 1]
+    if (!nextTemplate) return null
+    const nextDate = new Date(`${activeProgram.startDate}T00:00:00`)
+    nextDate.setDate(nextDate.getDate() + (nextTemplate.weekNumber - 1) * 7 + nextTemplate.dayNumber - 1)
 
-  // Find the last completed workout in this program
-  const [lastLog] = await db
-    .select()
-    .from(workoutLog)
-    .where(
-      and(
-        eq(workoutLog.userId, userId),
-        eq(workoutLog.programId, activeProgram.id),
-        eq(workoutLog.status, "completed"),
-        activeProgram.assignedAt ? gte(workoutLog.startedAt, activeProgram.assignedAt) : undefined
-      )
-    )
-    .orderBy(desc(workoutLog.completedAt))
-    .limit(1)
-
-  const lastIdx = templates.findIndex((t) => t.id === lastLog?.workoutTemplateId)
-  const nextTemplate = templates[lastIdx + 1]
-  if (!nextTemplate) return null
-  const nextDate = new Date(`${activeProgram.startDate}T00:00:00`)
-  nextDate.setDate(nextDate.getDate() + (nextTemplate.weekNumber - 1) * 7 + nextTemplate.dayNumber - 1)
-
-  return {
-    program: activeProgram,
-    template: nextTemplate,
-    nextDate,
-    weekNumber: nextTemplate.weekNumber,
-  }
+    return {
+      program: activeProgram,
+      template: nextTemplate,
+      nextDate,
+      weekNumber: nextTemplate.weekNumber,
+    }
+  }))
+  return candidates.filter((candidate) => candidate !== null)
+    .sort((a, b) => a.nextDate.getTime() - b.nextDate.getTime() || a.program.id - b.program.id)[0] ?? null
 }
 
 // ── Start / manage workout logs ──────────────────────────────────────────────

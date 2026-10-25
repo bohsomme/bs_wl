@@ -1,5 +1,6 @@
 import { getWorkoutLogs } from "@/lib/actions/workouts"
 import { getPrograms } from "@/lib/actions/programs"
+import { localDate, programStatus } from "@/lib/program-schedule"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
@@ -24,7 +25,7 @@ export default async function LogPage({
     return {
       key: id === null ? "unassigned" : String(id),
       name: program?.name ?? (id === null ? "Without a program" : "Deleted program"),
-      isActive: program?.isActive ?? false,
+      isActive: program ? programStatus(program, localDate()) === "Current" : false,
       logs,
     }
   }).sort((a, b) => Number(b.isActive) - Number(a.isActive))
