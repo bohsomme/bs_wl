@@ -175,6 +175,7 @@ export default async function HomePage() {
                   <CardContent className="flex items-center justify-between py-3">
                     <div>
                       <p className="font-medium text-sm">{log.name}</p>
+                      {log.status === "skipped" && <Badge variant="secondary">Skipped</Badge>}
                       <p className="text-xs text-muted-foreground">
                         {log.completedAt
                           ? new Date(log.completedAt).toLocaleDateString("en-US", {

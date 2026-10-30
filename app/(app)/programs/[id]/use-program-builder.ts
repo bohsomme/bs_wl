@@ -50,6 +50,7 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
   const [ffDuration, setFfDuration] = useState("")
 
   // New template form
+  const [newTemplateWarmup, setNewTemplateWarmup] = useState("")
   const [newTemplateName, setNewTemplateName] = useState("")
   const [newTemplateWeek, setNewTemplateWeek] = useState(1)
   const [newTemplateDay, setNewTemplateDay] = useState(1)
@@ -83,6 +84,12 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
   const [newExOpen, setNewExOpen] = useState(false)
   const [newExName, setNewExName] = useState("")
   const [newExMuscle, setNewExMuscle] = useState("")
+
+  async function handleSaveWarmup(id: number, warmup: string) {
+    const updated = await updateWorkoutTemplate(id, { warmup })
+    setTemplates((prev) => prev.map((template) => template.id === id ? updated : template))
+    setSelectedTemplate((prev) => prev?.id === id ? updated : prev)
+  }
 
   function selectTemplate(t: WorkoutTemplate) {
     setSelectedTemplate(t)
@@ -189,12 +196,14 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
       const t = await createWorkoutTemplate({
         programId: program.id,
         name: newRestDay ? "Rest day" : newTemplateName.trim(),
+        warmup: newRestDay ? undefined : newTemplateWarmup,
         isRestDay: newRestDay,
         weekNumber: newTemplateWeek,
         dayNumber: newTemplateDay,
       })
       setTemplates((prev) => [...prev, t])
       setNewTemplateName("")
+      setNewTemplateWarmup("")
       setAddTemplateOpen(false)
       setScheduleError("")
       } catch (error) { setScheduleError(error instanceof Error ? error.message : "Could not add day.") }
@@ -394,6 +403,7 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
   }
 
   return {
+    newTemplateWarmup, setNewTemplateWarmup, handleSaveWarmup,
     handleRenameTemplate, setSection,
     freePick, setFreePick, freePickCriteria, setFreePickCriteria,
     editingFunctionalBlock, ffError, handleEditFunctionalBlock, handleMoveExercise,

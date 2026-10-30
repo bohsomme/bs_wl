@@ -13,7 +13,7 @@ separate runs on the same dates cannot be distinguished automatically.
 
 The versioned JSON contains:
 
-- `json_schema_version`: `1.2`. Increase this
+- `json_schema_version`: `1.3`. Increase this
   when the export structure or field meanings change.
 - `block`: program name, description, selected dates, current week count and
   calculated program end date.
@@ -35,6 +35,16 @@ Apply `migrations/008-per-set-reps.sql` for individual set targets. Choose
 rep count for every set (including optional sets), such as `5, 3, 1`.
 These prescriptions export `reps_by_set: [5, 3, 1]` and `reps: null`.
 Shared rep targets and older snapshots export `reps_by_set: null`.
+
+Apply `migrations/010-workout-warmup.sql` for optional workout warmups. Version
+1.3 includes `warmup` in each programmed session and the recorded session's
+`planned` object. Historical snapshots preserve the original warmup; older
+snapshots export `null`. Skipped sessions have `status: "skipped"`, and their
+exercise entries also report `skipped`.
+
+Apply `migrations/011-workout-warmup-status.sql` for warmup decisions. Each
+recorded session includes `warmup_status`: `completed`, `skipped`, or `null`
+when no decision was recorded. This is separate from the overall workout status.
 
 Prescriptions include ranges for sets, reps, seconds and total reps; fixed weights,
 percentage targets (including per-set ranges), target RPE, sections, supersets,

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { ExercisePicker } from "@/components/exercise-picker"
 import type { Exercise } from "@/lib/db/schema"
 import { addAccessoryGroup } from "@/lib/actions/programs"
 import { parseRepsBySet } from "@/lib/prescription"
@@ -59,7 +60,7 @@ export function AccessoryForm({ templateId, exercises, onSaved }: { templateId: 
           {rows.map((row, i) => <fieldset key={i} className="space-y-3 rounded-lg border p-3">
             <legend className="px-1 text-sm font-medium">Exercise {i + 1}</legend>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={row.freePick} onChange={(e) => update(i, { freePick: e.target.checked })} />Free-pick exercise</label>
-            {row.freePick ? <div className="space-y-2"><Label htmlFor={"criteria-" + i}>Criteria</Label><Textarea id={"criteria-" + i} value={row.criteria} onChange={(e) => update(i, { criteria: e.target.value })} placeholder="e.g. Upper-body pull; use dumbbells. Enter one or more criteria." /><p className="text-xs text-muted-foreground">Choose and name the exercise during the workout.</p></div> : <div className="space-y-2"><Label htmlFor={"exercise-" + i}>Exercise</Label><select id={"exercise-" + i} className="w-full rounded-md border bg-background p-2" value={row.exerciseId} onChange={(e) => update(i, { exerciseId: e.target.value })}><option value="">Select exercise...</option>{exercises.map((ex) => <option key={ex.id} value={ex.id}>{ex.name}</option>)}</select></div>}
+            {row.freePick ? <div className="space-y-2"><Label htmlFor={"criteria-" + i}>Criteria</Label><Textarea id={"criteria-" + i} value={row.criteria} onChange={(e) => update(i, { criteria: e.target.value })} placeholder="e.g. Upper-body pull; use dumbbells. Enter one or more criteria." /><p className="text-xs text-muted-foreground">Choose and name the exercise during the workout.</p></div> : <div className="space-y-2"><Label htmlFor={"exercise-" + i}>Exercise</Label><ExercisePicker id={"exercise-" + i} exercises={exercises} value={row.exerciseId ? Number(row.exerciseId) : null} onValueChange={(value) => update(i, { exerciseId: value == null ? "" : String(value) })} disabled={pending} /></div>}
             <div className="space-y-1.5"><Label htmlFor={"target-type-" + i}>Target per set</Label><select id={"target-type-" + i} className="w-full rounded-md border bg-background p-2" value={row.targetType} onChange={(e) => update(i, { targetType: e.target.value, reps: e.target.value === "time" ? "30" : "10" })}><option value="reps">Reps</option><option value="per_set">Reps by set</option><option value="time">Time (seconds)</option></select></div>
             <div className="grid grid-cols-3 gap-2">
               {!superset && <div><Label htmlFor={"sets-" + i}>Sets</Label><Input id={"sets-" + i} type="number" min={1} value={row.sets} onChange={(e) => update(i, { sets: e.target.value })} /></div>}

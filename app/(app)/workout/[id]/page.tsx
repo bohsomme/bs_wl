@@ -20,7 +20,7 @@ export default async function WorkoutPage({ params }: Props) {
   ])
 
   if (!details) notFound()
-  if (details.log.status === "completed") redirect(`/log/${workoutId}`)
+  if (details.log.status !== "in_progress") redirect(`/log/${workoutId}`)
 
   const pbWeights: Record<number, string> = {}
   for (const { pb } of personalBests.sort((a, b) =>

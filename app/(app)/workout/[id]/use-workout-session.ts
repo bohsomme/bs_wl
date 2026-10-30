@@ -3,6 +3,7 @@ import { addExercise } from "@/lib/actions/exercises"
 import {
   addExerciseLog,
   removeWorkoutSet,
+  setWorkoutWarmupStatus,
   updateExerciseLog,
   updateWorkoutLog,
   upsertSetLog,
@@ -27,6 +28,10 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
 
   const [phase, setPhase] = useState<Phase>("readiness")
   const [currentGroupIdx, setCurrentGroupIdx] = useState(0)
+  const warmup = log.plannedSnapshot?.template.warmup
+  const [warmupStatus, setWarmupStatus] = useState(log.warmupStatus)
+  const [warmupError, setWarmupError] = useState("")
+  const needsWarmup = Boolean(warmup?.trim()) && warmupStatus == null
 
   // Readiness phase state
   const [readiness, setReadiness] = useState(log.readiness != null && log.readiness <= 5 ? String(log.readiness) : "")
@@ -88,9 +93,22 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
           preNotes,
         })
         setCheckInStatus("Saved")
-        if (beginWorkout) setPhase("exercises")
+        if (beginWorkout) setPhase(needsWarmup ? "warmup" : "exercises")
       } catch {
         setCheckInStatus("Could not save. Please try again.")
+      }
+    })
+  }
+
+  function finishWarmup(status: "completed" | "skipped") {
+    startTransition(async () => {
+      setWarmupError("")
+      try {
+        const saved = await setWorkoutWarmupStatus(log.id, status)
+        setWarmupStatus(saved.warmupStatus)
+        setPhase("exercises")
+      } catch (error) {
+        setWarmupError(error instanceof Error ? error.message : "Could not save warmup. Please try again.")
       }
     })
   }
@@ -329,6 +347,7 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
   }
 
   return {
+    warmup, needsWarmup, warmupStatus, warmupError, finishWarmup,
     router,
     pending,
     log,

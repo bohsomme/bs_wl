@@ -35,3 +35,28 @@ workout uses the existing free-pick flow to record the chosen exercise name,
 weight and reps or seconds. Editing can add or remove a superset without losing
 the free-pick criteria. Free picks remain accessory-only and cannot use PB
 percentage loading.
+
+# Skipping workouts and prescribed warmups
+
+On the workout check-in page, choose **Skip workout** and confirm. No readiness,
+bar feel, notes or exercise entries are required. The workout remains in history
+as **Skipped**, leaves the active session, and advances Next Workout. Skipped
+sessions are counted separately from completed sessions and included in exports.
+
+Apply `migrations/010-workout-warmup.sql` before deploying warmup support.
+Add optional free-text warmup instructions when creating a workout, or edit them
+with **Save warmup** in the workout editor. Clearing the field removes the warmup.
+Warmups are copied with workouts and programs and captured when a workout starts,
+so its warmup step, history and export retain the original instructions.
+Older snapshots without a warmup continue to show no warmup.
+
+Apply `migrations/011-workout-warmup-status.sql` to save warmup decisions.
+After check-in, a prescribed warmup appears as a separate step with the check-in
+panel at the top. Choose **Done** or **Skip warmup** before continuing to the
+first exercise. The choice is saved in the workout log and export, and is
+remembered after a reload. Workouts without warmup instructions go directly to
+exercises. Skipping the whole workout still requires no warmup decision.
+
+Exercise selectors in the workout and accessory editors include a search box.
+Type an exercise name to filter the list, then select a result with the mouse or
+arrow keys and Enter.

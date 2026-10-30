@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { Dispatch, SetStateAction } from "react"
@@ -18,6 +19,8 @@ const DAYS = Array.from({ length: 7 }, (_, i) => `Day ${i + 1}`)
 const DAY_ITEMS = DAYS.map((label, i) => ({ value: String(i + 1), label }))
 
 interface TemplateDialogProps {
+  warmup: string
+  setWarmup: Dispatch<SetStateAction<string>>
   isRestDay: boolean
   error: string
   addTemplateOpen: boolean
@@ -34,6 +37,7 @@ interface TemplateDialogProps {
 }
 
 export function TemplateDialog({
+  warmup, setWarmup,
   isRestDay, error,
   addTemplateOpen,
   setAddTemplateOpen,
@@ -64,6 +68,10 @@ export function TemplateDialog({
             />
           </div>
           }
+          {!isRestDay && <div className="space-y-1.5">
+            <Label htmlFor="new-workout-warmup">Prescribed warmup (optional)</Label>
+            <Textarea id="new-workout-warmup" value={warmup} onChange={(event) => setWarmup(event.target.value)} placeholder="Warmup instructions..." rows={3} />
+          </div>}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Week</Label>

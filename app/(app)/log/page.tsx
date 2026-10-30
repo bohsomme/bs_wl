@@ -48,16 +48,16 @@ export default async function LogPage({
           {exportProgram && <ProgramExportDialog program={exportProgram} />}
         </div>
         <p className="text-muted-foreground text-sm mt-1">
-          {selected ? "All your completed workout sessions in this program." : "Choose a program to view your completed workouts."}
+          {selected ? "Completed and skipped workouts in this program." : "Choose a program to view your workout history."}
         </p>
       </div>
 
       {allLogs.length === 0 ? (
         <div className="text-center py-16 space-y-2">
           <CalendarDays className="w-10 h-10 text-muted-foreground/30 mx-auto" />
-          <p className="font-medium text-sm">No completed workouts yet</p>
+          <p className="font-medium text-sm">No logged workouts yet</p>
           <p className="text-xs text-muted-foreground">
-            Finish a workout session to see it here.
+            Complete or skip a workout to see it here.
           </p>
         </div>
       ) : !selected ? (
@@ -71,7 +71,7 @@ export default async function LogPage({
                     <p className="font-semibold text-sm break-words">{group.name}</p>
                     {group.isActive && <Badge>Current program</Badge>}
                     <p className="text-xs text-muted-foreground">
-                      {group.logs.length} completed {group.logs.length === 1 ? "workout" : "workouts"}
+                      {group.logs.filter((log) => log.status === "completed").length} completed · {group.logs.filter((log) => log.status === "skipped").length} skipped
                     </p>
                     {group.logs[0].completedAt && (
                       <p className="text-xs text-muted-foreground">
@@ -111,6 +111,7 @@ export default async function LogPage({
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    {log.status === "skipped" && <Badge variant="secondary">Skipped</Badge>}
                     {log.readiness && (
                       <Badge variant="outline" className="text-xs">
                         Readiness {log.readiness}/{log.readiness > 5 ? "10 (legacy)" : "5"}

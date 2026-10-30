@@ -3,7 +3,7 @@ import type { Exercise, TemplateExercise, TemplateFunctionalBlock, WorkoutTempla
 // Dates are strings in JSONB; keep only the fields needed to preserve the plan.
 export type WorkoutPlan = {
   capturedAt: string
-  template: Pick<WorkoutTemplate, "id" | "name" | "weekNumber" | "dayNumber" | "orderInDay" | "isRestDay">
+  template: Pick<WorkoutTemplate, "id" | "name" | "weekNumber" | "dayNumber" | "orderInDay" | "isRestDay"> & { warmup?: string | null }
   exercises: {
     prescription: Omit<TemplateExercise, "createdAt">
     exercise: Pick<Exercise, "id" | "name" | "muscleGroup" | "description"> | null

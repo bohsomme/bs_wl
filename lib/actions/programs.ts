@@ -100,6 +100,7 @@ export async function duplicateProgram(id: number) {
       .values({
         programId: newProgram.id,
         name: t.name,
+        warmup: t.warmup,
         isRestDay: t.isRestDay,
         weekNumber: t.weekNumber,
         dayNumber: t.dayNumber,
@@ -206,10 +207,11 @@ export async function createWorkoutTemplate(data: {
   weekNumber: number
   dayNumber: number
   isRestDay?: boolean
+  warmup?: string
 }) {
   await validateSchedule(data.programId, data.weekNumber, data.dayNumber, data.isRestDay ?? false)
   if (!Number.isInteger(data.dayNumber) || data.dayNumber < 1 || data.dayNumber > 7) throw new Error("Choose Day 1-7")
-  const [t] = await db.insert(workoutTemplate).values(data).returning()
+  const [t] = await db.insert(workoutTemplate).values({ ...data, warmup: data.isRestDay ? null : data.warmup?.trim() || null }).returning()
   revalidatePath("/dashboard")
   revalidatePath(`/programs/${data.programId}`)
   return t
@@ -217,7 +219,7 @@ export async function createWorkoutTemplate(data: {
 
 export async function updateWorkoutTemplate(
   id: number,
-  data: Partial<{ name: string; weekNumber: number; dayNumber: number }>
+  data: Partial<{ name: string; weekNumber: number; dayNumber: number; warmup: string | null }>
 ) {
   const userId = await getUserId()
   const [existing] = await db.select({ t: workoutTemplate }).from(workoutTemplate).innerJoin(program, eq(workoutTemplate.programId, program.id)).where(and(eq(workoutTemplate.id, id), eq(program.userId, userId)))
@@ -226,7 +228,7 @@ export async function updateWorkoutTemplate(
   if (data.dayNumber !== undefined && (!Number.isInteger(data.dayNumber) || data.dayNumber < 1 || data.dayNumber > 7)) throw new Error("Choose Day 1-7")
   const [t] = await db
     .update(workoutTemplate)
-    .set(data)
+    .set({ ...data, ...(data.warmup !== undefined ? { warmup: existing.t.isRestDay ? null : data.warmup?.trim() || null } : {}) })
     .where(eq(workoutTemplate.id, id))
     .returning()
   revalidatePath(`/programs/${t.programId}`)
@@ -268,6 +270,7 @@ export async function duplicateWorkoutTemplate(data: {
     .values({
       programId: source.programId,
       name: source.name,
+      warmup: source.warmup,
       isRestDay: source.isRestDay,
       weekNumber: data.targetWeek,
       dayNumber: data.targetDay,

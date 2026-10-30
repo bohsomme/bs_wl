@@ -16,6 +16,7 @@ import { useProgramBuilder } from "./use-program-builder"
 
 export function ProgramBuilder({ program, initialTemplates, exercises: initialExercises }: ProgramBuilderProps) {
   const {
+    newTemplateWarmup, setNewTemplateWarmup, handleSaveWarmup,
     handleRenameTemplate, setSection,
     freePick, setFreePick, freePickCriteria, setFreePickCriteria,
     editingFunctionalBlock, ffError, handleEditFunctionalBlock, handleMoveExercise,
@@ -153,6 +154,7 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
 
         {/* Right: exercise builder */}
         <TemplateEditor
+          onSaveWarmup={handleSaveWarmup}
           handleMoveExercise={handleMoveExercise}
           handleEditFunctionalBlock={handleEditFunctionalBlock}
           resetFfForm={resetFfForm}
@@ -179,6 +181,8 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
 
       {/* Add Template Dialog */}
       <TemplateDialog
+        warmup={newTemplateWarmup}
+        setWarmup={setNewTemplateWarmup}
         isRestDay={newRestDay}
         error={scheduleError}
         addTemplateOpen={addTemplateOpen}

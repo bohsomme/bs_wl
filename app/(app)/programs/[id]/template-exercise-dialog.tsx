@@ -1,4 +1,5 @@
 "use client"
+import { ExercisePicker } from "@/components/exercise-picker"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -135,20 +136,7 @@ export function TemplateExerciseDialog({
             {!freePick && <>
               <Label>Exercise</Label>
               <div className="flex gap-2">
-                <Select
-                  items={exercises.map((ex) => ({ value: String(ex.id), label: ex.name }))}
-                  value={selectedExId !== null ? String(selectedExId) : null}
-                  onValueChange={(v) => setSelectedExId(v === null ? null : Number(v))}
-                >
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Select exercise..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {exercises.map((ex) => (
-                      <SelectItem key={ex.id} value={String(ex.id)}>{ex.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <ExercisePicker exercises={exercises} value={selectedExId} onValueChange={setSelectedExId} disabled={pending} />
                 <Button variant="outline" size="icon" onClick={() => setNewExOpen(true)}>
                   <Plus className="w-4 h-4" />
                 </Button>

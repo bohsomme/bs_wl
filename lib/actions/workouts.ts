@@ -44,7 +44,7 @@ export async function getNextWorkout() {
         .where(and(
           eq(workoutLog.userId, userId),
           eq(workoutLog.programId, activeProgram.id),
-          eq(workoutLog.status, "completed"),
+          inArray(workoutLog.status, ["completed", "skipped"]),
           activeProgram.assignedAt ? gte(workoutLog.startedAt, activeProgram.assignedAt) : undefined,
         ))
         .orderBy(desc(workoutLog.completedAt))
@@ -101,10 +101,10 @@ export async function startWorkout(data: {
       const bests = await tx.select().from(personalBest).where(eq(personalBest.userId, userId))
         .orderBy(asc(personalBest.createdAt), asc(personalBest.id))
       const pbWeights = new Map(bests.map((pb) => [pb.exerciseId, calculateOneRepMax(Number(pb.weight), pb.reps)]))
-      const { id, name, weekNumber, dayNumber, orderInDay, isRestDay } = owned.t
+      const { id, name, weekNumber, dayNumber, orderInDay, isRestDay, warmup } = owned.t
       const plannedSnapshot: WorkoutPlan = {
         capturedAt: new Date().toISOString(),
-        template: { id, name, weekNumber, dayNumber, orderInDay, isRestDay },
+        template: { id, name, weekNumber, dayNumber, orderInDay, isRestDay, warmup },
         exercises: rows.map(({ te, exercise: ex }) => {
           const { createdAt: _createdAt, ...prescription } = te
           return {
@@ -181,6 +181,36 @@ export async function updateWorkoutLog(
     .set(payload)
     .where(and(eq(workoutLog.id, id), eq(workoutLog.userId, userId)))
     .returning()
+  revalidatePath("/log")
+  revalidatePath(`/log/${id}`)
+  revalidatePath(`/workout/${id}`)
+  revalidatePath("/dashboard")
+  return log
+}
+
+export async function setWorkoutWarmupStatus(id: number, status: "completed" | "skipped") {
+  const userId = await getUserId()
+  if (!Number.isSafeInteger(id) || id <= 0) throw new Error("Invalid workout ID")
+  if (status !== "completed" && status !== "skipped") throw new Error("Choose done or skipped for the warmup.")
+  const condition = and(eq(workoutLog.id, id), eq(workoutLog.userId, userId), eq(workoutLog.status, "in_progress"))
+  const [existing] = await db.select().from(workoutLog).where(condition)
+  if (!existing) throw new Error("Active workout not found")
+  if (!existing.plannedSnapshot?.template.warmup?.trim()) throw new Error("This workout has no prescribed warmup.")
+  const [log] = await db.update(workoutLog).set({ warmupStatus: status }).where(condition).returning()
+  if (!log) throw new Error("Active workout not found")
+  revalidatePath(`/workout/${id}`)
+  revalidatePath(`/log/${id}`)
+  return log
+}
+
+export async function skipWorkout(id: number) {
+  const userId = await getUserId()
+  if (!Number.isSafeInteger(id) || id <= 0) throw new Error("Invalid workout ID")
+  const [log] = await db.update(workoutLog)
+    .set({ status: "skipped", completedAt: new Date() })
+    .where(and(eq(workoutLog.id, id), eq(workoutLog.userId, userId), eq(workoutLog.status, "in_progress")))
+    .returning()
+  if (!log) throw new Error("Active workout not found")
   revalidatePath("/log")
   revalidatePath(`/log/${id}`)
   revalidatePath(`/workout/${id}`)
@@ -508,7 +538,7 @@ export async function getWorkoutLogs() {
   return db
     .select()
     .from(workoutLog)
-    .where(and(eq(workoutLog.userId, userId), eq(workoutLog.status, "completed")))
+    .where(and(eq(workoutLog.userId, userId), inArray(workoutLog.status, ["completed", "skipped"])))
     .orderBy(desc(workoutLog.completedAt))
 }
 

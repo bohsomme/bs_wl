@@ -120,7 +120,7 @@ export function buildProgramExport(data: ExportData) {
         superset: el?.superset ?? planned?.prescription.superset ?? null,
         planned: planned ? plannedExercise(planned) : null,
         plan_match: match,
-        status: el?.skipped ? "skipped" : sets.length ? "logged" : "not_logged",
+        status: log.status === "skipped" || el?.skipped ? "skipped" : sets.length ? "logged" : "not_logged",
         skipped: el?.skipped ?? null,
         top_set_rpe: el ? numeric(el.topSetRpe) : null,
         notes: el?.notes ?? null,
@@ -150,11 +150,13 @@ export function buildProgramExport(data: ExportData) {
       date: dateInZone(log.startedAt, range.timeZone),
       session: log.name,
       status: log.status,
+      warmup_status: log.warmupStatus ?? null,
       started_at: log.startedAt.toISOString(),
       completed_at: log.completedAt?.toISOString() ?? null,
       planned: plan ? {
         name: plan.template.name, week: plan.template.weekNumber, day: plan.template.dayNumber,
         order_in_day: plan.template.orderInDay, is_rest_day: plan.template.isRestDay,
+        warmup: plan.template.warmup ?? null,
         scheduled_date: addDays(range.startDate, (plan.template.weekNumber - 1) * 7 + plan.template.dayNumber - 1),
         functional_blocks: plannedBlocks(plan),
       } : null,
@@ -169,7 +171,7 @@ export function buildProgramExport(data: ExportData) {
   })
 
   return {
-    json_schema_version: 1.2,
+    json_schema_version: 1.3,
     exported_at: (data.exportedAt ?? new Date()).toISOString(),
     block: {
       program_id: program.id, name: program.name, description: program.description,
@@ -178,7 +180,7 @@ export function buildProgramExport(data: ExportData) {
     },
     metadata: {
       time_zone: range.timeZone,
-      selection: "Inclusive local workout start dates; includes completed and in-progress sessions.",
+      selection: "Inclusive local workout start dates; includes completed, skipped and in-progress sessions.",
       units: { weight: "kg", exercise_duration: "seconds", functional_duration: "minutes" },
       ratings: "Readiness and bar feel are self-reported, currently 1–5. Legacy readiness may use 1–10; its original scale was not stored. RPE is 1–10.",
       percentages: "Percentages apply to the reference estimated 1RM. A single target repeats for all sets; multiple targets are ordered by working-set number. min/max are inclusive. Historical 1RM is only available in workout snapshots.",
@@ -192,6 +194,7 @@ export function buildProgramExport(data: ExportData) {
       week: plan.template.weekNumber, day: plan.template.dayNumber, order_in_day: plan.template.orderInDay,
       scheduled_date: addDays(range.startDate, (plan.template.weekNumber - 1) * 7 + plan.template.dayNumber - 1),
       is_rest_day: plan.template.isRestDay, plan_source: "current_template",
+      warmup: plan.template.warmup ?? null,
       workout_log_ids: logs.filter((log) => log.workoutTemplateId === plan.template.id).map((log) => log.id),
       exercises: plan.exercises.map(plannedExercise), functional_blocks: plannedBlocks(plan),
     })),

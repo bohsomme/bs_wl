@@ -91,6 +91,7 @@ export const program = pgTable("program", {
 })
 
 export const workoutTemplate = pgTable("workout_template", {
+  warmup: text("warmup"),
   isRestDay: boolean("isRestDay").notNull().default(false),
   id: serial("id").primaryKey(),
   programId: integer("programId").notNull(),
@@ -141,6 +142,7 @@ export const templateFunctionalBlock = pgTable("template_functional_block", {
 })
 
 export const workoutLog = pgTable("workout_log", {
+  warmupStatus: text("warmupStatus").$type<"completed" | "skipped">(),
   plannedSnapshot: jsonb("plannedSnapshot").$type<import("@/lib/workout-plan").WorkoutPlan>(),
   id: serial("id").primaryKey(),
   userId: text("userId").notNull(),
@@ -155,7 +157,7 @@ export const workoutLog = pgTable("workout_log", {
   sessionRpe: numeric("sessionRpe", { precision: 4, scale: 1 }),
   postNotes: text("postNotes"),
   functionalNotes: text("functionalNotes"),
-  status: text("status").notNull().default("in_progress"), // 'in_progress' | 'completed'
+  status: text("status").notNull().default("in_progress"), // 'in_progress' | 'completed' | 'skipped'
 })
 
 export const exerciseLog = pgTable("exercise_log", {

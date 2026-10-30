@@ -7,6 +7,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ExerciseLogCard } from "./exercise-log-card"
 import { DeleteWorkoutButton } from "../delete-workout-button"
+import { WorkoutWarmup } from "@/components/workout-warmup"
 
 interface Props {
   params: Promise<{ id: string }>
@@ -26,7 +27,7 @@ export default async function LogDetailPage({ params }: Props) {
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button render={<Link href={log.status === "completed" ? `/log?program=${log.programId ?? "unassigned"}` : "/log"} />} variant="ghost" size="icon" aria-label="Back to workout log">
+        <Button render={<Link href={log.status !== "in_progress" ? `/log?program=${log.programId ?? "unassigned"}` : "/log"} />} variant="ghost" size="icon" aria-label="Back to workout log">
           <ChevronLeft className="w-5 h-5" />
         </Button>
         <div className="min-w-0 flex-1">
@@ -46,6 +47,12 @@ export default async function LogDetailPage({ params }: Props) {
       </div>
 
       {/* Session summary */}
+      {log.status === "skipped" && <div className="space-y-2 rounded-xl border p-4">
+        <Badge variant="secondary">Skipped</Badge>
+        <p className="text-sm text-muted-foreground">This workout was skipped.</p>
+      </div>}
+      <WorkoutWarmup warmup={log.plannedSnapshot?.template.warmup} status={log.warmupStatus} />
+      {log.status !== "skipped" && <>
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Session Summary</CardTitle>
@@ -94,6 +101,7 @@ export default async function LogDetailPage({ params }: Props) {
           )
         })}
       </div>
+      </>}
     </div>
   )
 }

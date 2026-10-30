@@ -12,11 +12,13 @@ import { groupTemplateExercises } from "@/lib/template-exercise-order"
 import { ArrowDown, ArrowUp, Clock, Copy, Dumbbell, Flame, Plus, Settings, Trash2 } from "lucide-react"
 import type { Dispatch, SetStateAction } from "react"
 import { AccessoryForm } from "./accessory-form"
+import { WarmupEditor } from "./warmup-editor"
 import type { TemplateExerciseRow } from "./program-types"
 
 const DAYS = Array.from({ length: 7 }, (_, i) => `Day ${i + 1}`)
 
 interface TemplateEditorProps {
+  onSaveWarmup: (id: number, warmup: string) => Promise<void>
   selectedTemplate: WorkoutTemplate | null
   setDupWeek: Dispatch<SetStateAction<number>>
   program: Program
@@ -40,6 +42,7 @@ interface TemplateEditorProps {
 }
 
 export function TemplateEditor({
+  onSaveWarmup,
   selectedTemplate,
   setDupWeek,
   program,
@@ -103,6 +106,9 @@ export function TemplateEditor({
               </Button>
             </div>
           </div>
+
+          <WarmupEditor key={selectedTemplate.id} initialValue={selectedTemplate.warmup} disabled={pending}
+            onSave={(warmup) => onSaveWarmup(selectedTemplate.id, warmup)} />
 
           {templateExercises.filter((row) => row.te.section !== "accessory").length === 0 ? (
             <Card className="border-dashed">
