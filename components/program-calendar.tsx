@@ -20,6 +20,7 @@ export function ProgramCalendar({ programs, templates, today: serverToday }: {
   today: string
 }) {
   const [today, setToday] = useState(serverToday)
+  const [showAllPrograms, setShowAllPrograms] = useState(false)
   const start = programs.map((p) => p.startDate).sort()[0]
   const end = programs.map(programEnd).sort().at(-1)!
   const initialDate = today < start ? start : today > end ? end : today
@@ -44,6 +45,7 @@ export function ProgramCalendar({ programs, templates, today: serverToday }: {
   const days = Array.from({ length: Math.ceil((offset + daysInMonth) / 7) * 7 }, (_, i) => dateAt(month, i - offset))
   const selectedWorkouts = workouts.filter((workout) => workout.date === selected)
   const selectedPrograms = programs.filter((p) => selected >= p.startDate && selected <= programEnd(p))
+  const visiblePrograms = showAllPrograms ? programs : programs.filter((program) => programEnd(program) >= today)
 
   function moveMonth(delta: number) {
     const date = new Date(`${month}T00:00:00Z`)
@@ -102,7 +104,14 @@ export function ProgramCalendar({ programs, templates, today: serverToday }: {
           )) : <p className="text-sm text-muted-foreground">{selectedPrograms.length === 0 ? "No program assigned for this date." : "No workout planned. Rest day."}</p>}
         </div>
         <div className="space-y-2">
-          {programs.map((program) => <div key={program.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold">{showAllPrograms ? "All assigned programs" : "Current and upcoming programs"}</h3>
+            <Button variant="outline" size="sm" aria-pressed={showAllPrograms} onClick={() => setShowAllPrograms((showAll) => !showAll)}>
+              {showAllPrograms ? "Show current and upcoming" : "View all assigned programs"}
+            </Button>
+          </div>
+          {visiblePrograms.length === 0 && <p className="text-sm text-muted-foreground">No current or upcoming programs assigned.</p>}
+          {visiblePrograms.map((program) => <div key={program.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3">
             <div><Link href={`/programs/${program.id}`} className="text-sm font-medium hover:underline">{program.name}</Link>
               <p className="text-xs text-muted-foreground">{formatDate(program.startDate, { day: "numeric", month: "short", year: "numeric" })} – {formatDate(programEnd(program), { day: "numeric", month: "short", year: "numeric" })}</p>
             </div>

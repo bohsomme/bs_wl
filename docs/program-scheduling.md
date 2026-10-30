@@ -16,6 +16,11 @@ program's start date. Next Workout chooses the earliest remaining workout from
 current and upcoming programs. Programs whose date ranges have ended remain
 visible on the calendar but no longer supply the next workout.
 
+The program list beneath the calendar shows only current and upcoming assignments
+by default, including a current program's final day. View all assigned programs
+also shows past assignments; Show current and upcoming restores the default list.
+This filter uses today's date, regardless of the date selected in the calendar.
+
 The existing `program.isActive` field now means included in the calendar, so
 multiple programs may have it set. Labels distinguish Current, Scheduled and
 Ended using the date range. No database migration is required. Each program
