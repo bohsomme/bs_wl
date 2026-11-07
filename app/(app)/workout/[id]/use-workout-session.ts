@@ -26,14 +26,14 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
   const [functionalNotes, setFunctionalNotes] = useState(log.functionalNotes ?? "")
   const [functionalNotesStatus, setFunctionalNotesStatus] = useState("")
 
-  const [phase, setPhase] = useState<Phase>("readiness")
+  const [phase, setPhase] = useState<Phase>("warmup")
   const [currentGroupIdx, setCurrentGroupIdx] = useState(0)
   const warmup = log.plannedSnapshot?.template.warmup
   const [warmupStatus, setWarmupStatus] = useState(log.warmupStatus)
   const [warmupError, setWarmupError] = useState("")
   const needsWarmup = Boolean(warmup?.trim()) && warmupStatus == null
 
-  // Readiness phase state
+  // Check-in state shared by the warmup and workout pages.
   const [readiness, setReadiness] = useState(log.readiness != null && log.readiness <= 5 ? String(log.readiness) : "")
   const [barFeel, setBarFeel] = useState(log.barFeel != null && log.barFeel <= 5 ? String(log.barFeel) : "")
   const [preNotes, setPreNotes] = useState(log.preNotes ?? "")
@@ -84,16 +84,20 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
 
   const [checkInStatus, setCheckInStatus] = useState("")
 
+  async function persistCheckIn() {
+    await updateWorkoutLog(log.id, {
+      readiness: readiness ? Number(readiness) : undefined,
+      barFeel: barFeel ? Number(barFeel) : undefined,
+      preNotes,
+    })
+    setCheckInStatus("Saved")
+  }
+
   async function saveReadiness(beginWorkout = false) {
     startTransition(async () => {
       try {
-        await updateWorkoutLog(log.id, {
-          readiness: readiness ? Number(readiness) : undefined,
-          barFeel: barFeel ? Number(barFeel) : undefined,
-          preNotes,
-        })
-        setCheckInStatus("Saved")
-        if (beginWorkout) setPhase(needsWarmup ? "warmup" : "exercises")
+        await persistCheckIn()
+        if (beginWorkout && !needsWarmup) setPhase("exercises")
       } catch {
         setCheckInStatus("Could not save. Please try again.")
       }
@@ -104,6 +108,7 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
     startTransition(async () => {
       setWarmupError("")
       try {
+        await persistCheckIn()
         const saved = await setWorkoutWarmupStatus(log.id, status)
         setWarmupStatus(saved.warmupStatus)
         setPhase("exercises")

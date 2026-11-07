@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,6 +20,7 @@ export function ProgramCalendar({ programs, templates, today: serverToday }: {
   templates: PlannedWorkout[]
   today: string
 }) {
+  const router = useRouter()
   const [today, setToday] = useState(serverToday)
   const [showAllPrograms, setShowAllPrograms] = useState(false)
   const start = programs.map((p) => p.startDate).sort()[0]
@@ -80,7 +82,11 @@ export function ProgramCalendar({ programs, templates, today: serverToday }: {
             {days.map((date) => {
               const planned = workouts.filter((workout) => workout.date === date)
               return (
-                <button key={date} type="button" onClick={() => { setSelected(date); setMonth(date.slice(0, 7) + "-01") }}
+                <button key={date} type="button" onClick={() => {
+                  setSelected(date)
+                  setMonth(date.slice(0, 7) + "-01")
+                  if (planned.some((workout) => !workout.isRestDay)) router.push(`/calendar/${date}`)
+                }}
                   aria-pressed={selected === date} aria-current={date === today ? "date" : undefined}
                   aria-label={`${formatDate(date, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}, ${planned.filter((w) => !w.isRestDay).length} planned workouts${planned.length ? `: ${planned.map((w) => `${w.programName}: ${w.name}`).join(", ")}` : ""}`}
                   className={cn("min-w-0 rounded-md border p-1.5 text-left min-h-16 sm:min-h-24 sm:p-2 hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring", date.slice(0, 7) !== month.slice(0, 7) && "opacity-40", selected === date && "border-primary bg-primary/5", date === today && "font-bold")}>
@@ -98,7 +104,7 @@ export function ProgramCalendar({ programs, templates, today: serverToday }: {
           <h3 className="text-sm font-semibold">{formatDate(selected, { weekday: "long", day: "numeric", month: "long" })}</h3>
           {selectedWorkouts.length ? selectedWorkouts.map((workout) => (
             <div key={workout.id} className="rounded-lg border p-3">
-              <p className="text-sm font-medium break-words">{workout.name}</p>
+              <p className="text-sm font-medium break-words">{workout.isRestDay ? workout.name : <Link href={`/calendar/${selected}#workout-${workout.id}`} className="hover:underline">{workout.name}</Link>}</p>
               <p className="text-xs text-muted-foreground">{workout.programName} &middot; Week {workout.weekNumber} &middot; Day {workout.dayNumber}</p>
             </div>
           )) : <p className="text-sm text-muted-foreground">{selectedPrograms.length === 0 ? "No program assigned for this date." : "No workout planned. Rest day."}</p>}

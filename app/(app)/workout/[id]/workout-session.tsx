@@ -27,7 +27,7 @@ const RPE_OPTIONS = ["6", "6.5", "7", "7.5", "8", "8.5", "9", "9.5", "10"]
 
 export function WorkoutSession({ details: initialDetails, exercises, pbWeights }: WorkoutSessionProps) {
   const {
-    warmup, needsWarmup, warmupError, finishWarmup,
+    warmup, needsWarmup, warmupStatus, warmupError, finishWarmup,
     router,
     pending,
     log,
@@ -154,51 +154,32 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
       />
   </>
 
-  if (phase === "readiness") {
-    return (
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => router.back()}>
-            <ChevronLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <h1 className="text-xl font-bold">{log.name}</h1>
-            <p className="text-sm text-muted-foreground">Before you start</p>
-          </div>
-        </div>
-
-        {checkInPanel}
-        <Button onClick={() => saveReadiness(true)} disabled={pending} className="w-full gap-2">
-          {needsWarmup ? "Continue to warmup" : "Start Workout"} <ChevronRight className="w-4 h-4" />
-        </Button>
-        <SkipWorkoutButton id={log.id} disabled={pending} />
-      </div>
-    )
-  }
-
   // ── Finish Phase ─────────────────────────────────────────────────────────
 
   if (phase === "warmup") {
     return <div className="max-w-2xl mx-auto space-y-4">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" disabled={pending} aria-label="Back to check-in" onClick={() => setPhase("readiness")}>
+        <Button variant="ghost" size="icon" disabled={pending} aria-label="Back" onClick={() => router.back()}>
           <ChevronLeft className="w-5 h-5" />
         </Button>
         <div>
           <h1 className="text-xl font-bold">{log.name}</h1>
-          <p className="text-sm text-muted-foreground">Warmup</p>
+          <p className="text-sm text-muted-foreground">{warmup?.trim() ? "Check-in & warmup" : "Before you start"}</p>
         </div>
       </div>
       {checkInPanel}
-      <WorkoutWarmup warmup={warmup} />
-      <p className="text-sm text-muted-foreground">Mark the warmup as done or skipped to continue.</p>
+      {warmup?.trim() && <WorkoutWarmup warmup={warmup} status={warmupStatus} />}
+      {needsWarmup && <p className="text-sm text-muted-foreground">Mark the warmup as done or skipped to continue.</p>}
       {warmupError && <p role="alert" className="text-sm text-destructive">{warmupError}</p>}
-      <div className="flex gap-3">
+      {needsWarmup ? <div className="flex gap-3">
         <Button variant="outline" className="flex-1" disabled={pending} onClick={() => finishWarmup("skipped")}>Skip warmup</Button>
         <Button className="flex-1 gap-2" disabled={pending} onClick={() => finishWarmup("completed")}>
           <CheckCircle2 className="w-4 h-4" /> Done
         </Button>
-      </div>
+      </div> : <Button onClick={() => saveReadiness(true)} disabled={pending} className="w-full gap-2">
+        Start Workout <ChevronRight className="w-4 h-4" />
+      </Button>}
+      <SkipWorkoutButton id={log.id} disabled={pending} />
     </div>
   }
 
@@ -288,7 +269,7 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
     <div className="max-w-2xl mx-auto space-y-4">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => { saveCurrentExerciseNotes(); setPhase("readiness") }}>
+        <Button variant="ghost" size="icon" aria-label="Back to check-in and warmup" onClick={() => { saveCurrentExerciseNotes(); setPhase("warmup") }}>
           <ChevronLeft className="w-5 h-5" />
         </Button>
         <div className="flex-1 min-w-0">
