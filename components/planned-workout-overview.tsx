@@ -58,6 +58,8 @@ export function PlannedWorkoutOverview({ template, programName, exercises, funct
           <h3 className="font-semibold">Functional Fitness</h3>
           {functionalBlocks.map((block) => <div key={block.id} className="space-y-2 rounded-lg border p-4 break-words">
             <h4 className="font-medium">{functionalHeading(block)}</h4>
+            <p className="text-xs text-muted-foreground">{block.isProgrammed ? "Programmed workout" : "User-defined workout"}</p>
+            {block.isProgrammed && block.workout && <p className="whitespace-pre-wrap text-sm">{block.workout}</p>}
             {(block.source || block.durationMin != null) && <p className="text-sm text-muted-foreground">
               {block.source}{block.source && block.durationMin != null && " · "}{block.durationMin != null && `${block.durationMin} min`}
             </p>}

@@ -13,11 +13,16 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { FUNCTIONAL_PRESETS, type FunctionalKind } from "@/lib/functional-fitness"
+import { cn } from "@/lib/utils"
 import type { Dispatch, SetStateAction } from "react"
 
 const FUNCTIONAL_ITEMS = FUNCTIONAL_PRESETS.map((p) => ({ value: p.kind, label: p.label }))
 
 interface FunctionalBlockDialogProps {
+  ffIsProgrammed: boolean
+  setFfIsProgrammed: Dispatch<SetStateAction<boolean>>
+  ffWorkout: string
+  setFfWorkout: Dispatch<SetStateAction<string>>
   editing: boolean
   error: string
   ffOpen: boolean
@@ -38,6 +43,7 @@ interface FunctionalBlockDialogProps {
 }
 
 export function FunctionalBlockDialog({
+  ffIsProgrammed, setFfIsProgrammed, ffWorkout, setFfWorkout,
   editing, error,
   ffOpen,
   setFfOpen,
@@ -61,10 +67,39 @@ export function FunctionalBlockDialog({
         <DialogHeader>
           <DialogTitle>{editing ? "Edit" : "Add"} Functional Fitness</DialogTitle>
           <DialogDescription>
-            Pick a type of workout, or choose Custom to type a specific one.
+            Let the athlete choose the workout, or set a programmed workout in advance.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="functional-title">{ffKind === "custom" ? "Title" : "Title (optional)"}</Label>
+            <Input
+              id="functional-title"
+              placeholder={ffKind === "custom" ? "e.g. Fran" : "e.g. Rowing intervals"}
+              value={ffTitle}
+              onChange={(e) => setFfTitle(e.target.value)}
+            />
+          </div>
+          <fieldset className="space-y-2" disabled={pending}>
+            <legend className="text-sm font-medium mb-2">Workout programming</legend>
+            {[{ value: false, label: "Free choice", hint: "The athlete fills in the workout when training." },
+              { value: true, label: "Programmed workout", hint: "Set the workout now. It is read-only when training." }].map((option) => (
+              <button
+                key={String(option.value)}
+                type="button"
+                aria-pressed={ffIsProgrammed === option.value}
+                disabled={pending}
+                onClick={() => setFfIsProgrammed(option.value)}
+                className={cn(
+                  "block w-full rounded-lg border p-3 text-left transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+                  ffIsProgrammed === option.value ? "border-primary bg-primary/10 ring-1 ring-primary" : "border-border bg-background hover:bg-accent"
+                )}
+              >
+                <span className="block text-sm font-medium">{option.label}</span>
+                <span className="text-xs text-muted-foreground">{option.hint}</span>
+              </button>
+            ))}
+          </fieldset>
           <div className="space-y-1.5">
             <Label>Type</Label>
             <Select items={FUNCTIONAL_ITEMS} value={ffKind} onValueChange={(v) => setFfKind(v as FunctionalKind)}>
@@ -78,15 +113,10 @@ export function FunctionalBlockDialog({
               </SelectContent>
             </Select>
           </div>
-
-          <div className="space-y-1.5">
-            <Label>{ffKind === "custom" ? "Specific workout" : "Label (optional)"}</Label>
-            <Input
-              placeholder={ffKind === "custom" ? "e.g. Fran, 21-15-9 thrusters & pull-ups" : "e.g. Rowing intervals 5×500m"}
-              value={ffTitle}
-              onChange={(e) => setFfTitle(e.target.value)}
-            />
-          </div>
+          {ffIsProgrammed && <div className="space-y-1.5">
+            <Label htmlFor="programmed-functional-workout">Workout</Label>
+            <Textarea id="programmed-functional-workout" rows={5} value={ffWorkout} onChange={(e) => setFfWorkout(e.target.value)} placeholder="e.g. 5 rounds for time: 400 m run, 15 kettlebell swings, 10 pull-ups" />
+          </div>}
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -110,9 +140,9 @@ export function FunctionalBlockDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Details (optional)</Label>
+            <Label>Notes (optional)</Label>
             <Textarea
-              placeholder="Describe the workout, target pace, scaling, cues..."
+              placeholder="Target pace, scaling guidance, cues..."
               rows={3}
               value={ffDetails}
               onChange={(e) => setFfDetails(e.target.value)}
@@ -124,7 +154,7 @@ export function FunctionalBlockDialog({
           <Button variant="outline" disabled={pending} onClick={() => { setFfOpen(false); resetFfForm() }}>Cancel</Button>
           <Button
             onClick={handleAddFunctionalBlock}
-            disabled={pending || (ffKind === "custom" && !ffTitle.trim())}
+            disabled={pending || (ffKind === "custom" && !ffTitle.trim()) || (ffIsProgrammed && !ffWorkout.trim())}
           >
             {pending ? "Saving..." : editing ? "Save changes" : "Add"}
           </Button>

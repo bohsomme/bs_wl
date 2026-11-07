@@ -61,6 +61,7 @@ function plannedBlocks(plan: WorkoutPlan | undefined) {
   return (plan?.functionalBlocks ?? []).map((b) => ({
     template_block_id: b.id, order_index: b.orderIndex, kind: b.kind, title: b.title,
     source: b.source, details: b.details, duration_minutes: b.durationMin,
+    is_programmed: b.isProgrammed ?? false, workout: b.isProgrammed ? b.workout ?? null : null,
   }))
 }
 
@@ -166,12 +167,28 @@ export function buildProgramExport(data: ExportData) {
       session_rpe: numeric(log.sessionRpe),
       notes: log.postNotes,
       functional_notes: log.functionalNotes,
+      functional_results: [
+        ...(plan?.functionalBlocks ?? []).map((block) => {
+          const result = log.functionalResults?.find((entry) => entry.blockId === block.id)
+          return {
+            template_block_id: block.id,
+            workout: result?.workout ?? (block.isProgrammed ? block.workout ?? null : null),
+            score_notes: result?.scoreNotes ?? null,
+            rpe: result?.rpe ?? null,
+            status: log.status === "skipped" ? "skipped" : result ? "logged" : "not_logged",
+          }
+        }),
+        ...(log.functionalResults ?? []).filter((result) => !plan?.functionalBlocks.some((block) => block.id === result.blockId)).map((result) => ({
+          template_block_id: result.blockId, workout: result.workout, score_notes: result.scoreNotes,
+          rpe: result.rpe, status: log.status === "skipped" ? "skipped" : "logged",
+        })),
+      ],
       exercises,
     }
   })
 
   return {
-    json_schema_version: 1.3,
+    json_schema_version: 1.4,
     exported_at: (data.exportedAt ?? new Date()).toISOString(),
     block: {
       program_id: program.id, name: program.name, description: program.description,

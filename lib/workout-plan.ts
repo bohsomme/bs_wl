@@ -9,5 +9,5 @@ export type WorkoutPlan = {
     exercise: Pick<Exercise, "id" | "name" | "muscleGroup" | "description"> | null
     estimatedOneRepMaxKg: number | null
   }[]
-  functionalBlocks: Omit<TemplateFunctionalBlock, "createdAt">[]
+  functionalBlocks: (Omit<TemplateFunctionalBlock, "createdAt" | "isProgrammed" | "workout"> & Partial<Pick<TemplateFunctionalBlock, "isProgrammed" | "workout">>)[]
 }

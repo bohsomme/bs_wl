@@ -24,4 +24,4 @@ export interface WorkoutSessionProps {
   pbWeights: Record<number, string>
 }
 
-export type Phase = "warmup" | "exercises" | "finish"
+export type Phase = "warmup" | "exercises" | "functional" | "finish"

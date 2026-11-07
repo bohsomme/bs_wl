@@ -14,7 +14,7 @@ import {
   Plus
 } from "lucide-react"
 import { AddSessionExerciseDialog } from "./add-session-exercise-dialog"
-import { FunctionalNotesField } from "./functional-notes-field"
+import { FunctionalWorkoutFields } from "./functional-workout-fields"
 import { FunctionalWorkoutCard } from "./functional-workout-card"
 import { MissedSetDialog } from "./missed-set-dialog"
 import { PreviousAccessory } from "./previous-accessory"
@@ -33,10 +33,8 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
     log,
     exerciseLogs,
     functionalBlocks,
-    functionalNotes,
-    setFunctionalNotes,
-    functionalNotesStatus,
-    setFunctionalNotesStatus,
+    functionalResults, functionalDrafts, functionalStatus, currentFunctionalIdx,
+    updateFunctionalDraft, openFunctionalBlock, saveFunctionalWork,
     phase,
     setPhase,
     currentGroupIdx,
@@ -98,19 +96,9 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
     handleAddExercise,
     handleCreateExercise,
     finishWorkout,
-    saveFunctionalNotes,
   } = useWorkoutSession({ details: initialDetails, exercises, pbWeights })
 
-  const functionalNotesField = (
-    <FunctionalNotesField
-      functionalNotes={functionalNotes}
-      setFunctionalNotes={setFunctionalNotes}
-      setFunctionalNotesStatus={setFunctionalNotesStatus}
-      saveFunctionalNotes={saveFunctionalNotes}
-      functionalNotesStatus={functionalNotesStatus}
-      pending={pending}
-    />
-  )
+  const functionalOverview = functionalBlocks.length > 0 && <FunctionalWorkoutCard blocks={functionalBlocks} results={functionalResults} onOpen={openFunctionalBlock} pending={pending} />
 
   const checkInPanel = (
     <WorkoutCheckIn
@@ -183,11 +171,29 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
     </div>
   }
 
+  if (phase === "functional") {
+    const block = functionalBlocks[currentFunctionalIdx]
+    return <div className="max-w-2xl mx-auto space-y-4">
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" disabled={pending} aria-label="Back" onClick={() => saveFunctionalWork("previous")}><ChevronLeft className="w-5 h-5" /></Button>
+        <div>
+          <h1 className="text-xl font-bold">Functional Fitness</h1>
+          <p className="text-sm text-muted-foreground">{log.name} · Workout {currentFunctionalIdx + 1} of {functionalBlocks.length}</p>
+        </div>
+      </div>
+      <FunctionalWorkoutFields block={block} draft={functionalDrafts[block.id]} status={functionalStatus} pending={pending} onChange={(patch) => updateFunctionalDraft(block.id, patch)} onSave={() => saveFunctionalWork()} />
+      <div className="flex justify-between gap-3">
+        <Button variant="outline" disabled={pending} onClick={() => saveFunctionalWork("previous")}><ChevronLeft className="w-4 h-4" /> Previous</Button>
+        <Button disabled={pending} onClick={() => saveFunctionalWork("next")}>{currentFunctionalIdx < functionalBlocks.length - 1 ? "Next" : "Done"}<ChevronRight className="w-4 h-4" /></Button>
+      </div>
+    </div>
+  }
+
   if (phase === "finish") {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => setPhase("exercises")}>
+          <Button variant="ghost" size="icon" disabled={pending} aria-label="Back to workout" onClick={() => setPhase(functionalBlocks.length ? "functional" : "exercises")}>
             <ChevronLeft className="w-5 h-5" />
           </Button>
           <div>
@@ -230,14 +236,13 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
               />
             </div>
 
-            {functionalBlocks.length > 0 && functionalNotesField}
-
             <Button onClick={finishWorkout} disabled={pending} className="w-full gap-2">
               <CheckCircle2 className="w-4 h-4" />
               {pending ? "Saving..." : "Complete Workout"}
             </Button>
           </CardContent>
         </Card>
+        {functionalOverview}
       </div>
     )
   }
@@ -247,17 +252,15 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
   if (currentRows.length === 0) {
     return (
       <div className="max-w-2xl mx-auto space-y-4">
-        {functionalBlocks.length > 0 && (
-          <FunctionalWorkoutCard blocks={functionalBlocks}>{functionalNotesField}</FunctionalWorkoutCard>
-        )}
         {exerciseDialogs}
         <div className="text-center py-8 space-y-3">
           <p className="font-medium">No strength exercises in this workout.</p>
           <div className="flex flex-wrap gap-2 justify-center">
             <Button onClick={() => setAddExOpen(true)}>Add Exercise</Button>
-            <Button variant="outline" onClick={() => setPhase("finish")}>Finish Workout</Button>
+            <Button variant="outline" onClick={() => functionalBlocks.length ? openFunctionalBlock(0) : setPhase("finish")}>{functionalBlocks.length ? "Functional Fitness" : "Finish Workout"}</Button>
           </div>
         </div>
+        {functionalOverview}
       </div>
     )
   }
@@ -378,7 +381,7 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
             onClick={advanceExercise}
             className="gap-1.5"
           >
-            <CheckCircle2 className="w-4 h-4" /> Finish
+            {functionalBlocks.length ? <>Functional Fitness <ChevronRight className="w-4 h-4" /></> : <><CheckCircle2 className="w-4 h-4" /> Finish</>}
           </Button>
         )}
       </div>
@@ -401,9 +404,7 @@ export function WorkoutSession({ details: initialDetails, exercises, pbWeights }
       </section>}
 
       {/* Functional Fitness reference */}
-      {functionalBlocks.length > 0 && (
-        <FunctionalWorkoutCard blocks={functionalBlocks}>{functionalNotesField}</FunctionalWorkoutCard>
-      )}
+      {functionalOverview}
 
       {/* Miss reason modal */}
       <MissedSetDialog

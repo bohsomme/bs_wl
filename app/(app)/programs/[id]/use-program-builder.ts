@@ -48,6 +48,8 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
   const [ffSource, setFfSource] = useState("")
   const [ffDetails, setFfDetails] = useState("")
   const [ffDuration, setFfDuration] = useState("")
+  const [ffIsProgrammed, setFfIsProgrammed] = useState(false)
+  const [ffWorkout, setFfWorkout] = useState("")
 
   // New template form
   const [newTemplateWarmup, setNewTemplateWarmup] = useState("")
@@ -127,12 +129,15 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
       try {
       const data = {
         kind: ffKind,
+        isProgrammed: ffIsProgrammed,
+        workout: ffIsProgrammed ? ffWorkout.trim() : null,
         title: ffTitle.trim() || null,
         source: ffSource.trim() || null,
         details: ffDetails.trim() || null,
         durationMin: ffDuration ? Number(ffDuration) : null,
       }
       if (data.durationMin != null && (!Number.isInteger(data.durationMin) || data.durationMin < 1)) throw new Error("Enter a positive whole number of minutes.")
+      if (ffIsProgrammed && !data.workout) throw new Error("Enter the programmed workout.")
       const block = editingFunctionalBlock
         ? await updateFunctionalBlock(editingFunctionalBlock.id, data)
         : await addFunctionalBlock({ ...data, workoutTemplateId: selectedTemplate.id,
@@ -161,6 +166,8 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
     setFfSource("")
     setFfDetails("")
     setFfDuration("")
+    setFfIsProgrammed(false)
+    setFfWorkout("")
   }
 
   function handleEditFunctionalBlock(block: TemplateFunctionalBlock) {
@@ -171,6 +178,8 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
     setFfSource(block.source ?? "")
     setFfDetails(block.details ?? "")
     setFfDuration(block.durationMin == null ? "" : String(block.durationMin))
+    setFfIsProgrammed(block.isProgrammed ?? false)
+    setFfWorkout(block.workout ?? "")
     setFfOpen(true)
   }
 
@@ -403,6 +412,7 @@ export function useProgramBuilder({ program, initialTemplates, exercises: initia
   }
 
   return {
+    ffIsProgrammed, setFfIsProgrammed, ffWorkout, setFfWorkout,
     newTemplateWarmup, setNewTemplateWarmup, handleSaveWarmup,
     handleRenameTemplate, setSection,
     freePick, setFreePick, freePickCriteria, setFreePickCriteria,

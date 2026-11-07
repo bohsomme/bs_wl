@@ -201,6 +201,8 @@ export function TemplateEditor({
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 space-y-1">
                           <p className="font-medium text-sm">{functionalHeading(b)}</p>
+                          <Badge variant="outline" className="text-xs">{b.isProgrammed ? "Programmed" : "User-defined"}</Badge>
+                          {b.isProgrammed && b.workout && <p className="text-sm whitespace-pre-wrap">{b.workout}</p>}
                           <div className="flex flex-wrap gap-1.5">
                             {b.source && <Badge variant="secondary" className="text-xs">{b.source}</Badge>}
                             {b.durationMin != null && (

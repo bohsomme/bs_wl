@@ -3,6 +3,7 @@ import { addExercise } from "@/lib/actions/exercises"
 import {
   addExerciseLog,
   removeWorkoutSet,
+  saveFunctionalResult,
   setWorkoutWarmupStatus,
   updateExerciseLog,
   updateWorkoutLog,
@@ -10,6 +11,7 @@ import {
 } from "@/lib/actions/workouts"
 import { exerciseTarget, percentageAt, weightTarget } from "@/lib/prescription"
 import { validateSetLog } from "@/lib/set-log-validation"
+import type { FunctionalResult } from "@/lib/functional-fitness"
 import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
 import { groupWorkoutExercises } from "./workout-exercise-groups"
@@ -23,8 +25,17 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
   const [exerciseLogs, setExerciseLogs] = useState([...initialDetails.exerciseLogs].sort((a, b) => Number(initialDetails.prescriptionMap[a.el.id]?.section === "accessory") - Number(initialDetails.prescriptionMap[b.el.id]?.section === "accessory")))
   const [setsMap, setSetsMap] = useState(initialDetails.setsMap)
   const functionalBlocks = initialDetails.functionalBlocks ?? []
-  const [functionalNotes, setFunctionalNotes] = useState(log.functionalNotes ?? "")
-  const [functionalNotesStatus, setFunctionalNotesStatus] = useState("")
+  const [functionalResults, setFunctionalResults] = useState(log.functionalResults ?? [])
+  const [functionalDrafts, setFunctionalDrafts] = useState<Record<number, { workout: string; scoreNotes: string; rpe: string }>>(Object.fromEntries(functionalBlocks.map((block) => {
+    const result = log.functionalResults?.find((entry) => entry.blockId === block.id)
+    return [block.id, {
+      workout: block.isProgrammed ? block.workout ?? "" : result?.workout ?? "",
+      scoreNotes: result?.scoreNotes ?? "",
+      rpe: result?.rpe == null ? "" : String(result.rpe),
+    }]
+  })))
+  const [functionalStatus, setFunctionalStatus] = useState("")
+  const [currentFunctionalIdx, setCurrentFunctionalIdx] = useState(0)
 
   const [phase, setPhase] = useState<Phase>("warmup")
   const [currentGroupIdx, setCurrentGroupIdx] = useState(0)
@@ -97,7 +108,7 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
     startTransition(async () => {
       try {
         await persistCheckIn()
-        if (beginWorkout && !needsWarmup) setPhase("exercises")
+        if (beginWorkout && !needsWarmup) setPhase(exerciseGroups.length || !functionalBlocks.length ? "exercises" : "functional")
       } catch {
         setCheckInStatus("Could not save. Please try again.")
       }
@@ -111,7 +122,7 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
         await persistCheckIn()
         const saved = await setWorkoutWarmupStatus(log.id, status)
         setWarmupStatus(saved.warmupStatus)
-        setPhase("exercises")
+        setPhase(exerciseGroups.length || !functionalBlocks.length ? "exercises" : "functional")
       } catch (error) {
         setWarmupError(error instanceof Error ? error.message : "Could not save warmup. Please try again.")
       }
@@ -275,7 +286,8 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
     if (currentGroupIdx < exerciseGroups.length - 1) {
       setCurrentGroupIdx((i) => i + 1)
     } else {
-      setPhase("finish")
+      setPhase(functionalBlocks.length ? "functional" : "finish")
+      setCurrentFunctionalIdx(0)
     }
   }
 
@@ -330,7 +342,6 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
         preNotes,
         sessionRpe: sessionRpe ? Number(sessionRpe) : undefined,
         postNotes: postNotes || undefined,
-        functionalNotes,
         status: "completed",
         completedAt: new Date(),
       })
@@ -340,13 +351,38 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
 
   // ── Readiness Phase ──────────────────────────────────────────────────────
 
-  function saveFunctionalNotes() {
+  function updateFunctionalDraft(blockId: number, patch: Partial<{ workout: string; scoreNotes: string; rpe: string }>) {
+    setFunctionalDrafts((prev) => ({ ...prev, [blockId]: { ...prev[blockId], ...patch } }))
+    setFunctionalStatus("Unsaved changes")
+  }
+
+  function openFunctionalBlock(index: number) {
+    saveCurrentExerciseNotes()
+    setCurrentFunctionalIdx(index)
+    setFunctionalStatus("")
+    setPhase("functional")
+  }
+
+  function saveFunctionalWork(destination?: "next" | "previous") {
+    const block = functionalBlocks[currentFunctionalIdx]
+    if (!block) return
+    const draft = functionalDrafts[block.id]
     startTransition(async () => {
       try {
-        await updateWorkoutLog(log.id, { functionalNotes })
-        setFunctionalNotesStatus("Saved")
-      } catch {
-        setFunctionalNotesStatus("Could not save. Please try again.")
+        const rpe = draft.rpe.trim() === "" ? null : Number(draft.rpe)
+        if (rpe !== null && (!Number.isFinite(rpe) || rpe < 1 || rpe > 10)) throw new Error("RPE must be between 1 and 10.")
+        const saved: FunctionalResult = await saveFunctionalResult(log.id, { blockId: block.id, workout: draft.workout, scoreNotes: draft.scoreNotes, rpe })
+        setFunctionalResults((prev) => [...prev.filter((entry) => entry.blockId !== block.id), saved])
+        setFunctionalStatus("Saved")
+        if (destination === "next") {
+          if (currentFunctionalIdx < functionalBlocks.length - 1) { setCurrentFunctionalIdx((i) => i + 1); setFunctionalStatus("") }
+          else setPhase("finish")
+        } else if (destination === "previous") {
+          if (currentFunctionalIdx > 0) { setCurrentFunctionalIdx((i) => i - 1); setFunctionalStatus("") }
+          else setPhase(exerciseGroups.length ? "exercises" : "warmup")
+        }
+      } catch (error) {
+        setFunctionalStatus(error instanceof Error ? error.message : "Could not save. Please try again.")
       }
     })
   }
@@ -358,10 +394,8 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
     log,
     exerciseLogs,
     functionalBlocks,
-    functionalNotes,
-    setFunctionalNotes,
-    functionalNotesStatus,
-    setFunctionalNotesStatus,
+    functionalResults, functionalDrafts, functionalStatus, currentFunctionalIdx,
+    updateFunctionalDraft, openFunctionalBlock, saveFunctionalWork,
     phase,
     setPhase,
     currentGroupIdx,
@@ -423,6 +457,5 @@ export function useWorkoutSession({ details: initialDetails, exercises, pbWeight
     handleAddExercise,
     handleCreateExercise,
     finishWorkout,
-    saveFunctionalNotes,
   }
 }

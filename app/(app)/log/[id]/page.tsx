@@ -6,6 +6,7 @@ import { ChevronLeft } from "lucide-react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ExerciseLogCard } from "./exercise-log-card"
+import { FunctionalWorkoutLog } from "./functional-workout-log"
 import { DeleteWorkoutButton } from "../delete-workout-button"
 import { WorkoutWarmup } from "@/components/workout-warmup"
 
@@ -101,6 +102,7 @@ export default async function LogDetailPage({ params }: Props) {
           )
         })}
       </div>
+      <FunctionalWorkoutLog blocks={data.functionalBlocks} results={log.functionalResults ?? []} />
       </>}
     </div>
   )

@@ -16,6 +16,7 @@ import { useProgramBuilder } from "./use-program-builder"
 
 export function ProgramBuilder({ program, initialTemplates, exercises: initialExercises }: ProgramBuilderProps) {
   const {
+    ffIsProgrammed, setFfIsProgrammed, ffWorkout, setFfWorkout,
     newTemplateWarmup, setNewTemplateWarmup, handleSaveWarmup,
     handleRenameTemplate, setSection,
     freePick, setFreePick, freePickCriteria, setFreePickCriteria,
@@ -276,6 +277,10 @@ export function ProgramBuilder({ program, initialTemplates, exercises: initialEx
 
       {/* Functional Fitness Dialog */}
       <FunctionalBlockDialog
+        ffIsProgrammed={ffIsProgrammed}
+        setFfIsProgrammed={setFfIsProgrammed}
+        ffWorkout={ffWorkout}
+        setFfWorkout={setFfWorkout}
         editing={editingFunctionalBlock != null}
         error={ffError}
         ffOpen={ffOpen}

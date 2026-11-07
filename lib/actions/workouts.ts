@@ -3,6 +3,7 @@ import { calculateOneRepMax } from "@/lib/strength"
 import { validateSetLog } from "@/lib/set-log-validation"
 import { localDate, programEnd } from "@/lib/program-schedule"
 import type { WorkoutPlan } from "@/lib/workout-plan"
+import type { FunctionalResult } from "@/lib/functional-fitness"
 
 import { db } from "@/lib/db"
 import {
@@ -160,8 +161,9 @@ export async function updateWorkoutLog(
 
   // Drop undefined fields so we don't send empty updates to Drizzle.
   const payload: Record<string, unknown> = {}
+  const editableFields = ["readiness", "barFeel", "preNotes", "sessionRpe", "postNotes", "functionalNotes", "status", "completedAt"]
   for (const [key, value] of Object.entries(data)) {
-    if (value !== undefined) payload[key] = value
+    if (editableFields.includes(key) && value !== undefined) payload[key] = value
   }
   if (data.sessionRpe != null) payload.sessionRpe = String(data.sessionRpe)
 
@@ -201,6 +203,37 @@ export async function setWorkoutWarmupStatus(id: number, status: "completed" | "
   revalidatePath(`/workout/${id}`)
   revalidatePath(`/log/${id}`)
   return log
+}
+
+export async function saveFunctionalResult(id: number, data: FunctionalResult) {
+  const userId = await getUserId()
+  if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(data.blockId) || data.blockId <= 0) throw new Error("Invalid workout or block ID")
+  if (typeof data.workout !== "string" || typeof data.scoreNotes !== "string") throw new Error("Enter valid workout text and score / notes.")
+  if (data.rpe !== null && (!Number.isFinite(data.rpe) || data.rpe < 1 || data.rpe > 10)) throw new Error("RPE must be between 1 and 10.")
+  const result = await db.transaction(async (tx) => {
+    const condition = and(eq(workoutLog.id, id), eq(workoutLog.userId, userId), eq(workoutLog.status, "in_progress"))
+    const [log] = await tx.select().from(workoutLog).where(condition).for("update")
+    if (!log) throw new Error("Active workout not found")
+    // Started workouts retain their original programming, including its editability.
+    const blocks = log.plannedSnapshot?.functionalBlocks ?? (log.workoutTemplateId
+      ? await tx.select().from(templateFunctionalBlock).where(eq(templateFunctionalBlock.workoutTemplateId, log.workoutTemplateId))
+      : [])
+    const block = blocks.find((block) => block.id === data.blockId)
+    if (!block) throw new Error("Functional block not found")
+    const saved: FunctionalResult = {
+      blockId: block.id,
+      workout: block.isProgrammed ? block.workout ?? "" : data.workout.trim(),
+      scoreNotes: data.scoreNotes.trim(),
+      rpe: data.rpe,
+    }
+    const functionalResults = [...(log.functionalResults ?? []).filter((entry) => entry.blockId !== block.id), saved]
+    const [updated] = await tx.update(workoutLog).set({ functionalResults }).where(condition).returning()
+    if (!updated) throw new Error("Active workout not found")
+    return saved
+  })
+  revalidatePath(`/workout/${id}`)
+  revalidatePath(`/log/${id}`)
+  return result
 }
 
 export async function skipWorkout(id: number) {
@@ -309,7 +342,7 @@ export async function getWorkoutWithDetails(id: number) {
 
   // Prefer the saved plan; older workouts still use the source template.
   const functionalBlocks = log.plannedSnapshot
-    ? log.plannedSnapshot.functionalBlocks.map((block) => ({ ...block, createdAt: new Date(log.plannedSnapshot!.capturedAt) }))
+    ? log.plannedSnapshot.functionalBlocks.map((block) => ({ ...block, isProgrammed: block.isProgrammed ?? false, workout: block.workout ?? null, createdAt: new Date(log.plannedSnapshot!.capturedAt) }))
     : log.workoutTemplateId
     ? await db
         .select()
@@ -566,7 +599,12 @@ export async function getWorkoutLogDetail(id: number) {
       .orderBy(asc(setLog.setNumber))
   }
 
-  return { log, exerciseLogs, setsMap }
+  const functionalBlocks = log.plannedSnapshot
+    ? log.plannedSnapshot.functionalBlocks.map((block) => ({ ...block, isProgrammed: block.isProgrammed ?? false, workout: block.workout ?? null, createdAt: new Date(log.plannedSnapshot!.capturedAt) }))
+    : log.workoutTemplateId
+      ? await db.select().from(templateFunctionalBlock).where(eq(templateFunctionalBlock.workoutTemplateId, log.workoutTemplateId)).orderBy(asc(templateFunctionalBlock.orderIndex))
+      : []
+  return { log, exerciseLogs, setsMap, functionalBlocks }
 }
 
 // ── Seed workout from template ────────────────────────────────────────────────

@@ -148,6 +148,8 @@ export async function duplicateProgram(id: number) {
         workoutTemplateId: newTemplate.id,
         orderIndex: b.orderIndex,
         kind: b.kind,
+        isProgrammed: b.isProgrammed ?? false,
+        workout: b.workout ?? null,
         title: b.title,
         source: b.source,
         details: b.details,
@@ -318,6 +320,8 @@ export async function duplicateWorkoutTemplate(data: {
       workoutTemplateId: newTemplate.id,
       orderIndex: b.orderIndex,
       kind: b.kind,
+      isProgrammed: b.isProgrammed ?? false,
+      workout: b.workout ?? null,
       title: b.title,
       source: b.source,
       details: b.details,
@@ -347,13 +351,22 @@ export async function addFunctionalBlock(data: {
   details?: string
   durationMin?: number
   orderIndex?: number
+  isProgrammed?: boolean
+  workout?: string | null
 }) {
-  await getUserId()
+  const userId = await getUserId()
+  validateFunctionalBlock(data)
+  const [owned] = await db.select({ programId: program.id }).from(workoutTemplate)
+    .innerJoin(program, eq(workoutTemplate.programId, program.id))
+    .where(and(eq(workoutTemplate.id, data.workoutTemplateId), eq(program.userId, userId)))
+  if (!owned) throw new Error("Workout not found")
   const [block] = await db
     .insert(templateFunctionalBlock)
     .values({
       workoutTemplateId: data.workoutTemplateId,
       kind: data.kind,
+      isProgrammed: data.isProgrammed ?? false,
+      workout: data.isProgrammed ? data.workout!.trim() : null,
       title: data.title || null,
       source: data.source || null,
       details: data.details || null,
@@ -361,6 +374,7 @@ export async function addFunctionalBlock(data: {
       orderIndex: data.orderIndex ?? 0,
     })
     .returning()
+  revalidatePath(`/programs/${owned.programId}`)
   return block
 }
 
@@ -375,11 +389,11 @@ export async function updateFunctionalBlock(id: number, data: {
   source: string | null
   details: string | null
   durationMin: number | null
+  isProgrammed?: boolean
+  workout?: string | null
 }) {
   const userId = await getUserId()
-  if (!["metcon", "zone2", "mobility", "custom"].includes(data.kind)) throw new Error("Choose a valid workout type.")
-  if (data.kind === "custom" && !data.title?.trim()) throw new Error("Enter a workout title.")
-  if (data.durationMin != null && (!Number.isInteger(data.durationMin) || data.durationMin < 1)) throw new Error("Enter a positive whole number of minutes.")
+  validateFunctionalBlock(data)
   const [owned] = await db.select({ programId: program.id }).from(templateFunctionalBlock)
     .innerJoin(workoutTemplate, eq(templateFunctionalBlock.workoutTemplateId, workoutTemplate.id))
     .innerJoin(program, eq(workoutTemplate.programId, program.id))
@@ -388,9 +402,19 @@ export async function updateFunctionalBlock(id: number, data: {
   const [block] = await db.update(templateFunctionalBlock).set({
     kind: data.kind, title: data.title?.trim() || null, source: data.source?.trim() || null,
     details: data.details?.trim() || null, durationMin: data.durationMin,
+    isProgrammed: data.isProgrammed ?? false,
+    workout: data.isProgrammed ? data.workout!.trim() : null,
   }).where(eq(templateFunctionalBlock.id, id)).returning()
   revalidatePath(`/programs/${owned.programId}`)
   return block
+}
+
+function validateFunctionalBlock(data: { kind: string; title?: string | null; durationMin?: number | null; isProgrammed?: boolean; workout?: string | null }) {
+  if (!["metcon", "zone2", "mobility", "custom"].includes(data.kind)) throw new Error("Choose a valid workout type.")
+  if (data.kind === "custom" && !data.title?.trim()) throw new Error("Enter a workout title.")
+  if (data.durationMin != null && (!Number.isInteger(data.durationMin) || data.durationMin < 1)) throw new Error("Enter a positive whole number of minutes.")
+  if (data.isProgrammed !== undefined && typeof data.isProgrammed !== "boolean") throw new Error("Choose a valid programming option.")
+  if (data.isProgrammed && !data.workout?.trim()) throw new Error("Enter the programmed workout.")
 }
 
 export async function reorderTemplateExercises(templateId: number, section: string, orderedIds: number[]) {

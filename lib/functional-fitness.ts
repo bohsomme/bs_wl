@@ -3,6 +3,13 @@
 
 export type FunctionalKind = "metcon" | "zone2" | "mobility" | "custom"
 
+export type FunctionalResult = {
+  blockId: number
+  workout: string
+  scoreNotes: string
+  rpe: number | null
+}
+
 export const FUNCTIONAL_PRESETS: {
   kind: FunctionalKind
   label: string

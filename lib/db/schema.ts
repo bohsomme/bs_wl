@@ -134,6 +134,8 @@ export const templateFunctionalBlock = pgTable("template_functional_block", {
   workoutTemplateId: integer("workoutTemplateId").notNull(),
   orderIndex: integer("orderIndex").notNull().default(0),
   kind: text("kind").notNull().default("custom"),
+  isProgrammed: boolean("isProgrammed").notNull().default(false),
+  workout: text("workout"),
   title: text("title"),
   source: text("source"),
   details: text("details"),
@@ -157,6 +159,7 @@ export const workoutLog = pgTable("workout_log", {
   sessionRpe: numeric("sessionRpe", { precision: 4, scale: 1 }),
   postNotes: text("postNotes"),
   functionalNotes: text("functionalNotes"),
+  functionalResults: jsonb("functionalResults").$type<import("@/lib/functional-fitness").FunctionalResult[]>(),
   status: text("status").notNull().default("in_progress"), // 'in_progress' | 'completed' | 'skipped'
 })
 

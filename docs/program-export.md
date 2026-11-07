@@ -13,7 +13,7 @@ separate runs on the same dates cannot be distinguished automatically.
 
 The versioned JSON contains:
 
-- `json_schema_version`: `1.3`. Increase this
+- `json_schema_version`: `1.4`. Increase this
   when the export structure or field meanings change.
 - `block`: program name, description, selected dates, current week count and
   calculated program end date.
@@ -45,6 +45,18 @@ exercise entries also report `skipped`.
 Apply `migrations/011-workout-warmup-status.sql` for warmup decisions. Each
 recorded session includes `warmup_status`: `completed`, `skipped`, or `null`
 when no decision was recorded. This is separate from the overall workout status.
+
+Apply `migrations/012-functional-workouts.sql` before deploying functional
+workout logging. Functional blocks support a user-defined workout (the athlete
+enters the workout during training) or a programmed workout (set in advance and
+read-only during training). Both support optional programming notes.
+Version 1.4 adds `is_programmed` and `workout` to planned functional blocks, and
+`functional_results` to each recorded session. Every result contains
+`template_block_id`, `workout`, `score_notes`, `rpe`, and a `status` of `logged`,
+`not_logged`, or `skipped`. RPE is a number from 1–10 or null. Unrecorded fields
+are null; explicitly saved empty text is an empty string. Results are retained
+even if a legacy template block is removed. Existing `functional_notes` remain
+available separately. Older blocks and snapshots default to user-defined.
 
 Prescriptions include ranges for sets, reps, seconds and total reps; fixed weights,
 percentage targets (including per-set ranges), target RPE, sections, supersets,
